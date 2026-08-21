@@ -94,10 +94,10 @@ export default function Home() {
       {/* Header */}
       <header className="relative z-10 border-b border-zinc-100 bg-white/90 backdrop-blur-sm sticky top-0">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-16 gap-4">
             {/* Logo */}
             <motion.div
-              className="flex items-center gap-2.5"
+              className="flex items-center gap-2.5 shrink-0"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
@@ -113,8 +113,30 @@ export default function Home() {
               </div>
             </motion.div>
 
+            {/* Tabs */}
+            <nav className="flex-1 flex items-center justify-center gap-1 overflow-x-auto scrollbar-hide">
+              {TABS.map((tab, i) => (
+                <motion.button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: i * 0.05 }}
+                  className={`relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium whitespace-nowrap rounded-lg transition-colors ${
+                    activeTab === tab.id
+                      ? 'text-black bg-zinc-100'
+                      : 'text-zinc-400 hover:text-zinc-700'
+                  }`}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </motion.button>
+              ))}
+            </nav>
+
             {/* Wallet */}
             <motion.div
+              className="shrink-0"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
@@ -122,34 +144,6 @@ export default function Home() {
               <WalletConnectButton />
             </motion.div>
           </div>
-
-          {/* Tabs */}
-          <nav className="flex gap-1 pb-0 -mb-px overflow-x-auto scrollbar-hide">
-            {TABS.map((tab, i) => (
-              <motion.button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: i * 0.05 }}
-                className={`relative flex items-center gap-1.5 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
-                  activeTab === tab.id
-                    ? 'text-black'
-                    : 'text-zinc-400 hover:text-zinc-700'
-                }`}
-              >
-                {tab.icon}
-                {tab.label}
-                {activeTab === tab.id && (
-                  <motion.div
-                    layoutId="activeTab"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-black rounded-full"
-                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                  />
-                )}
-              </motion.button>
-            ))}
-          </nav>
         </div>
       </header>
 
