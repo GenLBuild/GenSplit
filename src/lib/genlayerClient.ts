@@ -19,15 +19,15 @@ function getChain() {
   return testnetAsimov;
 }
 
-// Exposes the current chain's wallet_addEthereumChain params for MetaMask
+// Exposes the wallet_addEthereumChain params for MetaMask — hardcoded to the
+// chain your contracts are actually deployed on (confirmed via GenLayer Studio).
 export function getWalletChainParams() {
-  const chain = getChain();
   return {
-    chainId: `0x${chain.id.toString(16)}`,
-    chainName: chain.name,
-    rpcUrls: [process.env.NEXT_PUBLIC_GENLAYER_RPC_URL || chain.rpcUrls.default.http[0]],
-    nativeCurrency: chain.nativeCurrency,
-    blockExplorerUrls: chain.blockExplorers?.default?.url ? [chain.blockExplorers.default.url] : undefined,
+    chainId: '0x107d', // 4221 in hex
+    chainName: 'GenLayer Testnet Chain',
+    rpcUrls: [process.env.NEXT_PUBLIC_GENLAYER_RPC_URL || 'https://rpc.testnet-chain.genlayer.com'],
+    nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
+    blockExplorerUrls: ['https://explorer.testnet-chain.genlayer.com'],
   };
 }
 
