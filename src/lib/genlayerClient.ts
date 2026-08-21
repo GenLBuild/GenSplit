@@ -19,6 +19,18 @@ function getChain() {
   return testnetAsimov;
 }
 
+// Exposes the current chain's wallet_addEthereumChain params for MetaMask
+export function getWalletChainParams() {
+  const chain = getChain();
+  return {
+    chainId: `0x${chain.id.toString(16)}`,
+    chainName: chain.name,
+    rpcUrls: [process.env.NEXT_PUBLIC_GENLAYER_RPC_URL || chain.rpcUrls.default.http[0]],
+    nativeCurrency: chain.nativeCurrency,
+    blockExplorerUrls: chain.blockExplorers?.default?.url ? [chain.blockExplorers.default.url] : undefined,
+  };
+}
+
 export function getGenLayerClient(address?: string): GenLayerClientInstance {
   if (clientInstance && (!address || address === currentAddress)) {
     return clientInstance;

@@ -92,7 +92,7 @@ export default function Home() {
       <GridBackground />
 
       {/* Header */}
-      <header className="relative z-10 border-b border-zinc-100 bg-white/90 backdrop-blur-sm sticky top-0">
+      <header className="relative z-30 border-b border-zinc-100 bg-white/90 backdrop-blur-sm sticky top-0">
         <div className="max-w-[1600px] mx-auto px-8 lg:px-16">
           <div className="flex items-center justify-between h-16 gap-4">
             {/* Logo */}

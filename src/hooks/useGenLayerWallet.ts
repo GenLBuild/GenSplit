@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getBalance, getGenLayerClient, resetClient } from '@/lib/genlayerClient';
+import { getBalance, getGenLayerClient, getWalletChainParams, resetClient } from '@/lib/genlayerClient';
 import { weiToGen } from '@/lib/format';
 
 export interface WalletState {
@@ -97,6 +97,17 @@ export function useGenLayerWallet(): WalletState {
       const accounts = await eth.request({ method: 'eth_requestAccounts' });
       if (!accounts || accounts.length === 0) {
         throw new Error('No accounts returned from wallet');
+      }
+
+      // Prompt the wallet to add/switch to the GenLayer network
+      try {
+        const ethWithSend = eth as unknown as { request: (args: { method: string; params: unknown[] }) => Promise<unknown> };
+        await ethWithSend.request({
+          method: 'wallet_addEthereumChain',
+          params: [getWalletChainParams()],
+        });
+      } catch (chainErr) {
+        console.warn('[useGenLayerWallet] could not add/switch chain:', chainErr);
       }
 
       const addr = accounts[0];
