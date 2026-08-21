@@ -1,0 +1,142 @@
+'use client';
+
+// GenLayerJS SDK — single init file
+// This is the ONLY file that imports genlayer-js
+// Handles: wallet connect, balance reads, GEN value transfers, and both contract calls
+
+import { createClient } from 'genlayer-js';
+import { testnetAsimov, testnetBradbury, localnet } from 'genlayer-js/chains';
+
+type GenLayerClientInstance = ReturnType<typeof createClient>;
+
+let clientInstance: GenLayerClientInstance | null = null;
+let currentAddress: string | null = null;
+
+function getChain() {
+  const network = process.env.NEXT_PUBLIC_GENLAYER_NETWORK ?? 'testnet-asimov';
+  if (network === 'testnet-bradbury') return testnetBradbury;
+  if (network === 'localnet') return localnet;
+  return testnetAsimov;
+}
+
+export function getGenLayerClient(address?: string): GenLayerClientInstance {
+  if (clientInstance && (!address || address === currentAddress)) {
+    return clientInstance;
+  }
+
+  const chain = getChain();
+  const config: Parameters<typeof createClient>[0] = { chain };
+
+  if (address) {
+    currentAddress = address;
+    config.account = address as `0x${string}`;
+  }
+
+  const rpcUrl = process.env.NEXT_PUBLIC_GENLAYER_RPC_URL;
+  if (rpcUrl) {
+    config.endpoint = rpcUrl;
+  }
+
+  clientInstance = createClient(config);
+  return clientInstance;
+}
+
+export function resetClient(): void {
+  clientInstance = null;
+  currentAddress = null;
+}
+
+// Get the live GEN balance for an address (in wei / base units)
+export async function getBalance(address: string): Promise<bigint> {
+  const client = getGenLayerClient(address);
+  try {
+    const balance = await client.getBalance({ address: address as `0x${string}` });
+    return balance;
+  } catch (err) {
+    console.error('[genlayerClient] getBalance error:', err);
+    throw err;
+  }
+}
+
+// Send a native GEN transfer — returns tx hash
+export async function sendGEN(
+  fromAddress: string,
+  toAddress: string,
+  amountWei: bigint
+): Promise<string> {
+  const client = getGenLayerClient(fromAddress);
+  try {
+    const hash = await client.sendTransaction({
+      to: toAddress as `0x${string}`,
+      value: amountWei,
+      account: fromAddress as `0x${string}`,
+    });
+    return hash as string;
+  } catch (err) {
+    console.error('[genlayerClient] sendGEN error:', err);
+    throw err;
+  }
+}
+
+// Call dispute_resolution contract — returns result via readContract
+export async function callDisputeResolution(
+  splitMemberId: string,
+  claimText: string,
+  txnHash: string
+): Promise<{ fulfilled: boolean; reasoning: string }> {
+  const contractAddress = process.env.NEXT_PUBLIC_GENLAYER_CONTRACT_DISPUTE;
+  if (!contractAddress) {
+    throw new Error('NEXT_PUBLIC_GENLAYER_CONTRACT_DISPUTE is not configured');
+  }
+
+  const client = getGenLayerClient();
+  const result = await client.readContract({
+    address: contractAddress as `0x${string}`,
+    functionName: 'resolve_dispute',
+    args: [splitMemberId, claimText, txnHash],
+  });
+
+  return result as { fulfilled: boolean; reasoning: string };
+}
+
+// Write to dispute_resolution contract (submits evidence via a state-changing call)
+export async function writeDisputeResolution(
+  fromAddress: string,
+  splitMemberId: string,
+  claimText: string,
+  txnHash: string
+): Promise<string> {
+  const contractAddress = process.env.NEXT_PUBLIC_GENLAYER_CONTRACT_DISPUTE;
+  if (!contractAddress) {
+    throw new Error('NEXT_PUBLIC_GENLAYER_CONTRACT_DISPUTE is not configured');
+  }
+
+  const client = getGenLayerClient(fromAddress);
+  const hash = await client.writeContract({
+    address: contractAddress as `0x${string}`,
+    functionName: 'resolve_dispute',
+    args: [splitMemberId, claimText, txnHash],
+    value: 0n,
+  });
+
+  return hash as string;
+}
+
+// Call payout_screening contract — screens a batch of addresses
+export async function callPayoutScreening(
+  walletAddresses: string[]
+): Promise<{ passed: boolean; flagged: string[] }> {
+  const contractAddress = process.env.NEXT_PUBLIC_GENLAYER_CONTRACT_SCREENING;
+  if (!contractAddress) {
+    throw new Error('NEXT_PUBLIC_GENLAYER_CONTRACT_SCREENING is not configured');
+  }
+
+  const client = getGenLayerClient();
+  const result = await client.readContract({
+    address: contractAddress as `0x${string}`,
+    functionName: 'screen_payout',
+    args: [walletAddresses],
+  });
+
+  return result as { passed: boolean; flagged: string[] };
+}
