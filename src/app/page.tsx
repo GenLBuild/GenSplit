@@ -168,7 +168,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-zinc-100 mt-16 py-8">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="max-w-[1400px] mx-auto px-6 lg:px-10 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-zinc-400 text-sm">
             <Zap size={14} />
             <span>GenSplit — Powered by GenLayer Intelligent Contracts</span>
