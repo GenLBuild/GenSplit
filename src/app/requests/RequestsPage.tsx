@@ -40,7 +40,7 @@ export function RequestsPage() {
   return (
     <div className="space-y-8">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 className="text-2xl font-black text-zinc-900 tracking-tight">Requests</h2>
+        <h2 className="text-4xl font-black text-zinc-900 tracking-tight">Requests</h2>
         <p className="text-zinc-500 text-sm mt-1">
           Incoming GEN payment requests — live via Supabase Realtime.
         </p>

@@ -93,7 +93,7 @@ export default function Home() {
 
       {/* Header */}
       <header className="relative z-10 border-b border-zinc-100 bg-white/90 backdrop-blur-sm sticky top-0">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="max-w-[1600px] mx-auto px-8 lg:px-16">
           <div className="flex items-center justify-between h-16 gap-4">
             {/* Logo */}
             <motion.div
@@ -106,7 +106,7 @@ export default function Home() {
                 <Zap size={16} className="text-white" />
               </div>
               <div>
-                <h1 className="font-black text-lg tracking-tight text-black">
+                <h1 className="font-black text-2xl tracking-tight text-black">
                   Gen<span className="font-light">Split</span>
                 </h1>
                 <Ticker />
@@ -148,7 +148,7 @@ export default function Home() {
       </header>
 
       {/* Main content */}
-      <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      <main className="relative z-10 max-w-[1600px] mx-auto px-8 lg:px-16 py-8">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}

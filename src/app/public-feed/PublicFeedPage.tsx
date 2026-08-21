@@ -73,7 +73,7 @@ export function PublicFeedPage() {
         className="flex items-start justify-between gap-4"
       >
         <div>
-          <h2 className="text-2xl font-black text-zinc-900 tracking-tight">Public Feed</h2>
+          <h2 className="text-4xl font-black text-zinc-900 tracking-tight">Public Feed</h2>
           <p className="text-zinc-500 text-sm mt-1">
             Anonymous on-chain activity — no wallet addresses stored.
           </p>

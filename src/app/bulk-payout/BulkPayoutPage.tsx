@@ -49,7 +49,7 @@ export function BulkPayoutPage() {
         className="flex flex-col sm:flex-row sm:items-start justify-between gap-4"
       >
         <div>
-          <h2 className="text-2xl font-black text-zinc-900 tracking-tight">Bulk Payout</h2>
+          <h2 className="text-4xl font-black text-zinc-900 tracking-tight">Bulk Payout</h2>
           <p className="text-zinc-500 text-sm mt-1">
             Send GEN to multiple wallets at once — screened via Intelligent Contract.
           </p>

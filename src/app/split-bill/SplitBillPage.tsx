@@ -46,7 +46,7 @@ export function SplitBillPage() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h2 className="text-2xl font-black text-zinc-900 tracking-tight">Split a Bill</h2>
+          <h2 className="text-4xl font-black text-zinc-900 tracking-tight">Split a Bill</h2>
           <p className="text-zinc-500 text-sm mt-1">
             Request GEN from multiple people — track who paid in real time.
           </p>
