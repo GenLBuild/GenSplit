@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { callPayoutScreening } from '@/lib/genlayerClient';
+import { useGenLayerWallet } from './useGenLayerWallet';
 
 export interface ScreeningState {
   isScreening: boolean;
@@ -10,6 +11,7 @@ export interface ScreeningState {
 }
 
 export function usePayoutScreening() {
+  const { address } = useGenLayerWallet();
   const [state, setState] = useState<ScreeningState>({
     isScreening: false,
     result: null,
@@ -33,7 +35,10 @@ export function usePayoutScreening() {
 
       setState({ isScreening: true, result: null, error: null });
       try {
-        const result = await callPayoutScreening(walletAddresses);
+        if (!address) {
+          throw new Error('Wallet not connected');
+        }
+        const result = await callPayoutScreening(address, walletAddresses);
         setState({ isScreening: false, result, error: null });
         return result;
       } catch (err) {

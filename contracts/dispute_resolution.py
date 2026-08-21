@@ -7,9 +7,10 @@
 # Deploy via GenLayer Studio: https://studio.genlayer.com/contracts
 # Test using Studio's Read/Write Methods panel and Node Logs before wiring frontend.
 
+# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+from genlayer import *
 import json
 import re
-import gl
 
 class DisputeResolution(gl.Contract):
     """
@@ -23,7 +24,7 @@ class DisputeResolution(gl.Contract):
         # No persistent state needed — each dispute is stateless
         pass
 
-    @gl.public.view
+    @gl.public.write
     def resolve_dispute(
         self,
         split_member_id: str,
@@ -79,12 +80,11 @@ Respond ONLY with valid JSON in exactly this format:
 Do not add any text outside the JSON.
 """
 
-        # Use GenLayer's nondeterministic LLM execution
-        result_str = gl.nondet.exec_prompt(evidence_summary)
-
         # Parse and validate the result using equivalence principle
         def parse_result() -> str:
             try:
+                # Use GenLayer's nondeterministic LLM execution inside the eq_principle block
+                result_str = gl.nondet.exec_prompt(evidence_summary)
                 # Strip markdown code fences if present
                 cleaned = result_str.strip()
                 if cleaned.startswith("```"):

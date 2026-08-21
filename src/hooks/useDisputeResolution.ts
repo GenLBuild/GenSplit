@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { callDisputeResolution } from '@/lib/genlayerClient';
 import { flagDispute } from './useSplits';
+import { useGenLayerWallet } from './useGenLayerWallet';
 
 export interface DisputeState {
   isSubmitting: boolean;
@@ -11,6 +12,7 @@ export interface DisputeState {
 }
 
 export function useDisputeResolution() {
+  const { address } = useGenLayerWallet();
   const [state, setState] = useState<DisputeState>({
     isSubmitting: false,
     result: null,
@@ -38,7 +40,10 @@ export function useDisputeResolution() {
         await flagDispute(splitMemberId);
 
         // Call the GenLayer Intelligent Contract
-        const result = await callDisputeResolution(splitMemberId, claimText, txnHash);
+        if (!address) {
+          throw new Error('Wallet not connected');
+        }
+        const result = await callDisputeResolution(address, splitMemberId, claimText, txnHash);
 
         setState({ isSubmitting: false, result, error: null });
         return result;

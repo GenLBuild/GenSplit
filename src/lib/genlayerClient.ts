@@ -80,6 +80,7 @@ export async function sendGEN(
 
 // Call dispute_resolution contract — returns result via readContract
 export async function callDisputeResolution(
+  fromAddress: string,
   splitMemberId: string,
   claimText: string,
   txnHash: string
@@ -89,14 +90,15 @@ export async function callDisputeResolution(
     throw new Error('NEXT_PUBLIC_GENLAYER_CONTRACT_DISPUTE is not configured');
   }
 
-  const client = getGenLayerClient();
-  const result = await client.readContract({
+  const client = getGenLayerClient(fromAddress);
+  const hash = await client.writeContract({
     address: contractAddress as `0x${string}`,
     functionName: 'resolve_dispute',
     args: [splitMemberId, claimText, txnHash],
+    value: 0n,
   });
-
-  return result as { fulfilled: boolean; reasoning: string };
+  const receipt = await client.waitForTransactionReceipt({ hash, status: 'FINALIZED' as any });
+  return receipt.result as unknown as { fulfilled: boolean; reasoning: string };
 }
 
 // Write to dispute_resolution contract (submits evidence via a state-changing call)
@@ -124,6 +126,7 @@ export async function writeDisputeResolution(
 
 // Call payout_screening contract — screens a batch of addresses
 export async function callPayoutScreening(
+  fromAddress: string,
   walletAddresses: string[]
 ): Promise<{ passed: boolean; flagged: string[] }> {
   const contractAddress = process.env.NEXT_PUBLIC_GENLAYER_CONTRACT_SCREENING;
@@ -131,12 +134,13 @@ export async function callPayoutScreening(
     throw new Error('NEXT_PUBLIC_GENLAYER_CONTRACT_SCREENING is not configured');
   }
 
-  const client = getGenLayerClient();
-  const result = await client.readContract({
+  const client = getGenLayerClient(fromAddress);
+  const hash = await client.writeContract({
     address: contractAddress as `0x${string}`,
     functionName: 'screen_payout',
     args: [walletAddresses],
+    value: 0n,
   });
-
-  return result as { passed: boolean; flagged: string[] };
+  const receipt = await client.waitForTransactionReceipt({ hash, status: 'FINALIZED' as any });
+  return receipt.result as unknown as { passed: boolean; flagged: string[] };
 }
