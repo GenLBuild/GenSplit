@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, Loader2, AlertCircle, CheckCircle2, Shield } from 'lucide-react';
+import { Plus, Trash2, Loader2, AlertCircle, CheckCircle2, Shield, ToggleLeft, ToggleRight } from 'lucide-react';
 import { AddressValidator } from '@/components/AddressValidator';
 import { usePayoutScreening } from '@/hooks/usePayoutScreening';
 import { sendGEN } from '@/lib/genlayerClient';
@@ -30,7 +30,12 @@ export function PayoutForm({
 }: PayoutFormProps) {
   const { screenAddresses, isScreening } = usePayoutScreening();
   const [status, setStatus] = useState<PayoutStatus>('idle');
-  const [equalTotal, setEqualTotal] = useState('');
+  const [totalAmount, setTotalAmount] = useState('');
+  const [equalSplit, setEqualSplit] = useState(true);
+  const equalAmount =
+    recipients.length > 0 && totalAmount
+      ? (parseFloat(totalAmount) / recipients.length).toFixed(6)
+      : '';
   const [screenResult, setScreenResult] = useState<{ passed: boolean; flagged: string[] } | null>(null);
   const [txResults, setTxResults] = useState<{ wallet: string; hash: string; success: boolean; error?: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -48,13 +53,6 @@ export function PayoutForm({
     // Format back to GEN string
     const perGEN = (Number(perRecipient) / 1e18).toFixed(6);
     onUpdateRecipients(recipients.map((r) => ({ ...r, amount: perGEN })));
-  };
-
-  const handleEqualSplit = () => {
-    const total = parseFloat(equalTotal);
-    if (recipients.length === 0 || !total || total <= 0) return;
-    const per = (total / recipients.length).toFixed(6);
-    onUpdateRecipients(recipients.map((r) => ({ ...r, amount: per })));
   };
 
   const handleSend = async () => {
@@ -115,27 +113,51 @@ export function PayoutForm({
 
   return (
     <div className="space-y-4">
-      {/* Equal split control */}
-      {recipients.length > 0 && (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-zinc-50 border border-zinc-200">
-          <span className="text-sm text-zinc-500 shrink-0">Split total equally:</span>
+      {/* Total amount + equal/custom toggle, matching Split a Bill */}
+      <div>
+        <label className="text-sm font-medium text-zinc-700 mb-1.5 block">Total Amount (GEN)</label>
+        <div className="relative">
           <input
             type="number"
             min="0"
             step="any"
-            value={equalTotal}
-            onChange={(e) => setEqualTotal(e.target.value)}
-            placeholder="Total GEN"
-            className="flex-1 text-sm px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-400 outline-none"
+            value={totalAmount}
+            onChange={(e) => {
+              setTotalAmount(e.target.value);
+              if (equalSplit && recipients.length > 0) {
+                const per = e.target.value
+                  ? (parseFloat(e.target.value) / recipients.length).toFixed(6)
+                  : '';
+                onUpdateRecipients(recipients.map((r) => ({ ...r, amount: per })));
+              }
+            }}
+            placeholder="0.00"
+            className="w-full text-lg px-4 py-3 pr-16 rounded-xl border border-zinc-200 focus:border-zinc-400 outline-none"
           />
-          <button
-            onClick={handleEqualSplit}
-            className="text-xs font-semibold text-zinc-600 hover:text-black underline shrink-0"
-          >
-            Split ({recipients.length})
-          </button>
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-zinc-400">GEN</span>
         </div>
-      )}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          const next = !equalSplit;
+          setEqualSplit(next);
+          if (next && totalAmount && recipients.length > 0) {
+            const per = (parseFloat(totalAmount) / recipients.length).toFixed(6);
+            onUpdateRecipients(recipients.map((r) => ({ ...r, amount: per })));
+          }
+        }}
+        className="w-full flex items-center justify-between p-4 rounded-xl border border-zinc-200 bg-zinc-50 hover:bg-zinc-100 transition-colors"
+      >
+        <div className="text-left">
+          <p className="font-semibold text-sm">{equalSplit ? 'Equal split' : 'Custom amounts'}</p>
+          <p className="text-xs text-zinc-500">
+            {equalSplit ? `Each recipient gets ${equalAmount || '—'} GEN` : 'Set each amount individually'}
+          </p>
+        </div>
+        {equalSplit ? <ToggleRight size={28} className="text-black" /> : <ToggleLeft size={28} />}
+      </button>
 
       {/* Recipient rows */}
       {recipients.length > 0 && (
