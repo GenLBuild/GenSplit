@@ -212,7 +212,7 @@ export function PayoutForm({
                 {r.success ? <CheckCircle2 size={12} className="text-emerald-500 shrink-0" /> : <AlertCircle size={12} className="text-red-500 shrink-0" />}
                 <span className="font-mono truncate text-zinc-600">{r.wallet.slice(0, 10)}…</span>
                 {r.success ? (
-                  <a href={`https://explorer.genlayer.com/tx/${r.hash}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline truncate ml-auto">
+                  <a href={`https://explorer.testnet-chain.genlayer.com/tx/${r.hash}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline truncate ml-auto">
                     {r.hash.slice(0, 10)}…
                   </a>
                 ) : (

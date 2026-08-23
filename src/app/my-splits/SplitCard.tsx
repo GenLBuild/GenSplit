@@ -131,7 +131,7 @@ function MemberRow({
         </span>
         {member.txn_hash && (
           <a
-            href={`https://explorer.genlayer.com/tx/${member.txn_hash}`}
+            href={`https://explorer.testnet-chain.genlayer.com/tx/${member.txn_hash}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-500 hover:text-blue-700"

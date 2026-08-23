@@ -77,7 +77,7 @@ export function RequestCard({ request, onUpdate }: RequestCardProps) {
           <p className="text-xs text-zinc-400">{formatDate(request.created_at)}</p>
           {request.txn_hash && (
             <a
-              href={`https://explorer.genlayer.com/tx/${request.txn_hash}`}
+              href={`https://explorer.testnet-chain.genlayer.com/tx/${request.txn_hash}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-blue-500 hover:underline flex items-center gap-1 mt-1 justify-end"
