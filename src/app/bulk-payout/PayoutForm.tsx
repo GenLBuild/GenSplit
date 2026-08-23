@@ -30,6 +30,7 @@ export function PayoutForm({
 }: PayoutFormProps) {
   const { screenAddresses, isScreening } = usePayoutScreening();
   const [status, setStatus] = useState<PayoutStatus>('idle');
+  const [equalTotal, setEqualTotal] = useState('');
   const [screenResult, setScreenResult] = useState<{ passed: boolean; flagged: string[] } | null>(null);
   const [txResults, setTxResults] = useState<{ wallet: string; hash: string; success: boolean; error?: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +48,13 @@ export function PayoutForm({
     // Format back to GEN string
     const perGEN = (Number(perRecipient) / 1e18).toFixed(6);
     onUpdateRecipients(recipients.map((r) => ({ ...r, amount: perGEN })));
+  };
+
+  const handleEqualSplit = () => {
+    const total = parseFloat(equalTotal);
+    if (recipients.length === 0 || !total || total <= 0) return;
+    const per = (total / recipients.length).toFixed(6);
+    onUpdateRecipients(recipients.map((r) => ({ ...r, amount: per })));
   };
 
   const handleSend = async () => {
@@ -107,6 +115,28 @@ export function PayoutForm({
 
   return (
     <div className="space-y-4">
+      {/* Equal split control */}
+      {recipients.length > 0 && (
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-zinc-50 border border-zinc-200">
+          <span className="text-sm text-zinc-500 shrink-0">Split total equally:</span>
+          <input
+            type="number"
+            min="0"
+            step="any"
+            value={equalTotal}
+            onChange={(e) => setEqualTotal(e.target.value)}
+            placeholder="Total GEN"
+            className="flex-1 text-sm px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-400 outline-none"
+          />
+          <button
+            onClick={handleEqualSplit}
+            className="text-xs font-semibold text-zinc-600 hover:text-black underline shrink-0"
+          >
+            Split ({recipients.length})
+          </button>
+        </div>
+      )}
+
       {/* Recipient rows */}
       {recipients.length > 0 && (
         <div className="space-y-2">
