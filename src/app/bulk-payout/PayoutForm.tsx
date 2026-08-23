@@ -28,7 +28,7 @@ export function PayoutForm({
   maxBalanceWei,
   onSuccess,
 }: PayoutFormProps) {
-  const { screenAddresses, isScreening } = usePayoutScreening();
+  const { screenAddresses, isScreening, error: screeningError } = usePayoutScreening();
   const [status, setStatus] = useState<PayoutStatus>('idle');
   const [totalAmount, setTotalAmount] = useState('');
   const [equalSplit, setEqualSplit] = useState(true);
@@ -81,7 +81,12 @@ export function PayoutForm({
     if (contractConfigured) {
       screening = await screenAddresses(recipients.map((r) => r.wallet));
       setScreenResult(screening);
-      if (!screening || !screening.passed) {
+      if (!screening) {
+        setError(screeningError || 'Screening failed — see console for details');
+        setStatus('idle');
+        return;
+      }
+      if (!screening.passed) {
         setStatus('idle');
         return;
       }

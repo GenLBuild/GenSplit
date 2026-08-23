@@ -47,7 +47,7 @@ export function usePayoutScreening() {
         return null;
       }
     },
-    []
+    [address]
   );
 
   const reset = useCallback(() => {
