@@ -65,8 +65,9 @@ export default function JoinPage({ params }: { params: { splitId: string } }) {
           amount_owed: toBigInt(m.amount_owed),
         })),
       });
-    } catch {
-      setError('Split not found or Supabase not configured');
+    } catch (err) {
+      console.error('[JoinPage] fetchSplit error:', err);
+      setError(err instanceof Error ? err.message : 'Split not found or Supabase not configured');
     } finally {
       setLoading(false);
     }
