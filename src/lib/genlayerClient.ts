@@ -6,6 +6,7 @@
 
 import { createClient } from 'genlayer-js';
 import { testnetAsimov, testnetBradbury, localnet } from 'genlayer-js/chains';
+import { TransactionStatus } from 'genlayer-js/types';
 
 type GenLayerClientInstance = ReturnType<typeof createClient>;
 
@@ -109,7 +110,7 @@ export async function callDisputeResolution(
     args: [splitMemberId, claimText, txnHash],
     value: 0n,
   });
-  const receipt = await client.waitForTransactionReceipt({ hash, status: 'ACCEPTED' as any, retries: 20, interval: 3000 });
+  const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED, retries: 100, interval: 5000 });
   return receipt.result as unknown as { fulfilled: boolean; reasoning: string };
 }
 
@@ -153,6 +154,6 @@ export async function callPayoutScreening(
     args: [walletAddresses],
     value: 0n,
   });
-  const receipt = await client.waitForTransactionReceipt({ hash, status: 'ACCEPTED' as any, retries: 20, interval: 3000 });
+  const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED, retries: 100, interval: 5000 });
   return receipt.result as unknown as { passed: boolean; flagged: string[] };
 }
