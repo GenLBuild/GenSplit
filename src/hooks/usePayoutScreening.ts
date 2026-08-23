@@ -42,6 +42,7 @@ export function usePayoutScreening() {
         setState({ isScreening: false, result, error: null });
         return result;
       } catch (err) {
+        console.error('[usePayoutScreening] screenAddresses error:', err);
         const msg = err instanceof Error ? err.message : 'Screening failed';
         setState({ isScreening: false, result: null, error: msg });
         return null;
