@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Loader2, AlertCircle, CheckCircle2, Shield, ToggleLeft, ToggleRight } from 'lucide-react';
 import { AddressValidator } from '@/components/AddressValidator';
@@ -36,6 +36,18 @@ export function PayoutForm({
     recipients.length > 0 && totalAmount
       ? (parseFloat(totalAmount) / recipients.length).toFixed(6)
       : '';
+
+  // Re-distribute whenever the recipient count changes while equal split is on
+  useEffect(() => {
+    if (equalSplit && totalAmount && recipients.length > 0) {
+      const per = (parseFloat(totalAmount) / recipients.length).toFixed(6);
+      const alreadyCorrect = recipients.every((r) => r.amount === per);
+      if (!alreadyCorrect) {
+        onUpdateRecipients(recipients.map((r) => ({ ...r, amount: per })));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipients.length, equalSplit, totalAmount]);
   const [screenResult, setScreenResult] = useState<{ passed: boolean; flagged: string[] } | null>(null);
   const [txResults, setTxResults] = useState<{ wallet: string; hash: string; success: boolean; error?: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
