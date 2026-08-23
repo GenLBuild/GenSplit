@@ -265,7 +265,7 @@ export function PayoutForm({
             <div>
               {screenResult.passed
                 ? 'Payout screening passed — batch is clear to send'
-                : `Screening blocked ${screenResult.flagged.length} address(es): ${screenResult.flagged.join(', ')}`}
+                : `Screening blocked ${(screenResult.flagged ?? []).length} address(es): ${(screenResult.flagged ?? []).join(', ')}`}
             </div>
           </motion.div>
         )}

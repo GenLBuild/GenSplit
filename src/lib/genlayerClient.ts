@@ -111,7 +111,7 @@ export async function callDisputeResolution(
     value: 0n,
   });
   const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED, retries: 100, interval: 5000 });
-  return receipt.result as unknown as { fulfilled: boolean; reasoning: string };
+  return (receipt.data ?? receipt.result) as unknown as { fulfilled: boolean; reasoning: string };
 }
 
 // Write to dispute_resolution contract (submits evidence via a state-changing call)
@@ -155,5 +155,5 @@ export async function callPayoutScreening(
     value: 0n,
   });
   const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED, retries: 100, interval: 5000 });
-  return receipt.result as unknown as { passed: boolean; flagged: string[] };
+  return (receipt.data ?? receipt.result) as unknown as { passed: boolean; flagged: string[] };
 }
