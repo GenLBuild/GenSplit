@@ -109,7 +109,7 @@ export async function callDisputeResolution(
     args: [splitMemberId, claimText, txnHash],
     value: 0n,
   });
-  const receipt = await client.waitForTransactionReceipt({ hash, status: 'FINALIZED' as any });
+  const receipt = await client.waitForTransactionReceipt({ hash, status: 'ACCEPTED' as any, retries: 20, interval: 3000 });
   return receipt.result as unknown as { fulfilled: boolean; reasoning: string };
 }
 
@@ -153,6 +153,6 @@ export async function callPayoutScreening(
     args: [walletAddresses],
     value: 0n,
   });
-  const receipt = await client.waitForTransactionReceipt({ hash, status: 'FINALIZED' as any });
+  const receipt = await client.waitForTransactionReceipt({ hash, status: 'ACCEPTED' as any, retries: 20, interval: 3000 });
   return receipt.result as unknown as { passed: boolean; flagged: string[] };
 }
