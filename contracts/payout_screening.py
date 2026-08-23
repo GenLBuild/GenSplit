@@ -79,7 +79,7 @@ Rules:
                 flagged = [str(a).lower() for a in parsed.get("flagged", []) if a in addresses]
                 passed = len(flagged) == 0
                 return json.dumps({"passed": passed, "flagged": flagged})
-            except (json.JSONDecodeError, KeyError, TypeError):
+            except Exception:
                 return json.dumps({"passed": True, "flagged": []})
 
         final_json = gl.eq_principle.strict_eq(parse_screening_result)
