@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, use } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Loader2, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -36,8 +36,8 @@ interface RawMember {
   created_at: string;
 }
 
-export default function JoinPage({ params }: { params: { splitId: string } }) {
-  const { splitId } = params;
+export default function JoinPage({ params }: { params: Promise<{ splitId: string }> }) {
+  const { splitId } = use(params);
   const { isConnected, address } = useGenLayerWallet();
   const [split, setSplit] = useState<Split | null>(null);
   const [loading, setLoading] = useState(true);
