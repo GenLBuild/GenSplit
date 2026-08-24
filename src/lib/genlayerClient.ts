@@ -177,6 +177,7 @@ export async function batchSendGEN(
     value: totalWei,
   });
   const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED, retries: 100, interval: 5000 });
+  console.log('[genlayerClient] batch_send full receipt:', JSON.stringify(receipt, (_k, v) => typeof v === 'bigint' ? v.toString() : v, 2));
   const decoded = decodeEqBlocksOutputs((receipt as unknown as { eqBlocksOutputs?: string }).eqBlocksOutputs) as
     | { success: boolean; sent: string[] }
     | null;
