@@ -155,5 +155,6 @@ export async function callPayoutScreening(
     value: 0n,
   });
   const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED, retries: 100, interval: 5000 });
+  console.log('[genlayerClient] full receipt object:', JSON.stringify(receipt, (_k, v) => typeof v === 'bigint' ? v.toString() : v, 2));
   return (receipt.data ?? receipt.result) as unknown as { passed: boolean; flagged: string[] };
 }
