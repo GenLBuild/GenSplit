@@ -176,12 +176,11 @@ export async function batchSendGEN(
     args: [recipients, amountsWei.map((a) => a.toString())],
     value: totalWei,
   });
-  const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED, retries: 100, interval: 5000 });
-  console.log('[genlayerClient] batch_send full receipt:', JSON.stringify(receipt, (_k, v) => typeof v === 'bigint' ? v.toString() : v, 2));
-  const decoded = decodeEqBlocksOutputs((receipt as unknown as { eqBlocksOutputs?: string }).eqBlocksOutputs) as
-    | { success: boolean; sent: string[] }
-    | null;
-  return { hash: hash as string, success: decoded?.success ?? false, sent: decoded?.sent ?? [] };
+  // EOA transfers only execute on finalization, so wait for that status here
+  const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED, retries: 200, interval: 5000 });
+  const statusName = (receipt as unknown as { status_name?: string }).status_name;
+  const success = statusName === 'ACCEPTED' || statusName === 'FINALIZED';
+  return { hash: hash as string, success, sent: success ? recipients : [] };
 }
 
 // Call payout_screening contract — screens a batch of addresses
