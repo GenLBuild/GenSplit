@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Loader2, AlertCircle, CheckCircle2, Shield, ToggleLeft, ToggleRight } from 'lucide-react';
 import { AddressValidator } from '@/components/AddressValidator';
 import { usePayoutScreening } from '@/hooks/usePayoutScreening';
-import { sendGEN } from '@/lib/genlayerClient';
+import { batchSendGEN } from '@/lib/genlayerClient';
 import { genToWei, formatGEN } from '@/lib/format';
 import { isValidGenLayerAddress } from '@/lib/validation';
 import { supabase } from '@/lib/supabaseClient';
@@ -96,29 +96,37 @@ export function PayoutForm({
       setScreenResult({ passed: true, flagged: [] });
     }
 
-    // Step 2: Send GEN to each recipient
+    // Step 2: Send GEN to all recipients in one signed transaction
     setStatus('sending');
     const results: typeof txResults = [];
 
-    for (const recipient of recipients) {
-      try {
-        const amountWei = genToWei(recipient.amount);
-        const hash = await sendGEN(fromAddress, recipient.wallet, amountWei);
-        results.push({ wallet: recipient.wallet, hash, success: true });
+    try {
+      const amountsWei = recipients.map((r) => genToWei(r.amount));
+      const batch = await batchSendGEN(fromAddress, recipients.map((r) => r.wallet), amountsWei);
 
-        // Record in Supabase public_feed
+      recipients.forEach((r) => {
+        results.push({
+          wallet: r.wallet,
+          hash: batch.hash,
+          success: batch.success && batch.sent.includes(r.wallet),
+        });
+      });
+
+      if (batch.success) {
         await supabase.from('public_feed').insert({
           event_type: 'payout_sent',
-          amount: Number(amountWei),
-        });
-      } catch (err) {
-        results.push({
-          wallet: recipient.wallet,
-          hash: '',
-          success: false,
-          error: err instanceof Error ? err.message : 'Transfer failed',
+          amount: Number(amountsWei.reduce((sum, a) => sum + a, 0n)),
         });
       }
+    } catch (err) {
+      recipients.forEach((r) => {
+        results.push({
+          wallet: r.wallet,
+          hash: '',
+          success: false,
+          error: err instanceof Error ? err.message : 'Batch transfer failed',
+        });
+      });
     }
 
     setTxResults(results);

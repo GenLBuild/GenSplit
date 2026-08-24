@@ -158,6 +158,31 @@ export async function writeDisputeResolution(
   return hash as string;
 }
 
+// Send GEN to many recipients in ONE signed transaction via the batch payout contract
+export async function batchSendGEN(
+  fromAddress: string,
+  recipients: string[],
+  amountsWei: bigint[]
+): Promise<{ hash: string; success: boolean; sent: string[] }> {
+  const contractAddress = process.env.NEXT_PUBLIC_GENLAYER_CONTRACT_BATCHPAYOUT;
+  if (!contractAddress) {
+    throw new Error('NEXT_PUBLIC_GENLAYER_CONTRACT_BATCHPAYOUT is not configured');
+  }
+  const totalWei = amountsWei.reduce((sum, a) => sum + a, 0n);
+  const client = getGenLayerClient(fromAddress);
+  const hash = await client.writeContract({
+    address: contractAddress as `0x${string}`,
+    functionName: 'batch_send',
+    args: [recipients, amountsWei.map((a) => a.toString())],
+    value: totalWei,
+  });
+  const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED, retries: 100, interval: 5000 });
+  const decoded = decodeEqBlocksOutputs((receipt as unknown as { eqBlocksOutputs?: string }).eqBlocksOutputs) as
+    | { success: boolean; sent: string[] }
+    | null;
+  return { hash: hash as string, success: decoded?.success ?? false, sent: decoded?.sent ?? [] };
+}
+
 // Call payout_screening contract — screens a batch of addresses
 export async function callPayoutScreening(
   fromAddress: string,
