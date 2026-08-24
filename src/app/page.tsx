@@ -8,15 +8,17 @@ import { SplitBillPage } from './split-bill/SplitBillPage';
 import { BulkPayoutPage } from './bulk-payout/BulkPayoutPage';
 import { RequestsPage } from './requests/RequestsPage';
 import { MySplitsPage } from './my-splits/MySplitsPage';
+import { MyPayoutsPage } from './my-payouts/MyPayoutsPage';
 import { PublicFeedPage } from './public-feed/PublicFeedPage';
 
-type Tab = 'split-bill' | 'bulk-payout' | 'requests' | 'my-splits' | 'public-feed';
+type Tab = 'split-bill' | 'bulk-payout' | 'requests' | 'my-splits' | 'my-payouts' | 'public-feed';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode; description: string }[] = [
   { id: 'split-bill', label: 'Split a Bill', icon: <Split size={16} />, description: 'Request GEN from multiple wallets' },
   { id: 'bulk-payout', label: 'Bulk Payout', icon: <SendHorizonal size={16} />, description: 'Send GEN to multiple addresses' },
   { id: 'requests', label: 'Requests', icon: <Inbox size={16} />, description: 'Your incoming payment requests' },
-  { id: 'my-splits', label: 'My Splits', icon: <LayoutGrid size={16} />, description: 'Splits & payouts you created' },
+  { id: 'my-splits', label: 'My Splits', icon: <LayoutGrid size={16} />, description: 'Splits you created' },
+  { id: 'my-payouts', label: 'My Payouts', icon: <SendHorizonal size={16} />, description: 'Bulk payouts you sent' },
   { id: 'public-feed', label: 'Public Feed', icon: <Globe size={16} />, description: 'Live on-chain activity' },
 ];
 
@@ -160,7 +162,8 @@ export default function Home() {
             {activeTab === 'split-bill' && <SplitBillPage />}
             {activeTab === 'bulk-payout' && <BulkPayoutPage />}
             {activeTab === 'requests' && <RequestsPage />}
-            {activeTab === 'my-splits' && <MySplitsPage />}
+              {activeTab === 'my-splits' && <MySplitsPage />}
+            {activeTab === 'my-payouts' && <MyPayoutsPage />}
             {activeTab === 'public-feed' && <PublicFeedPage />}
           </motion.div>
         </AnimatePresence>

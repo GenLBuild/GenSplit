@@ -112,10 +112,19 @@ export function PayoutForm({
         });
       });
 
+      const totalWeiSent = amountsWei.reduce((sum, a) => sum + a, 0n);
+      await supabase.from('payout_batches').insert({
+        sender_address: fromAddress.toLowerCase(),
+        total_amount: Number(totalWeiSent),
+        recipient_count: recipients.length,
+        recipients: recipients.map((r) => ({ wallet: r.wallet, amount: r.amount })),
+        tx_hash: batch.hash,
+        status: batch.success ? 'sent' : 'failed',
+      });
       if (batch.success) {
         await supabase.from('public_feed').insert({
           event_type: 'payout_sent',
-          amount: Number(amountsWei.reduce((sum, a) => sum + a, 0n)),
+          amount: Number(totalWeiSent),
         });
       }
     } catch (err) {
