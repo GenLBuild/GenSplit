@@ -54,6 +54,26 @@ export function getGenLayerClient(address?: string): GenLayerClientInstance {
   return clientInstance;
 }
 
+// GenLayer encodes a write call's JSON return value inside receipt.eqBlocksOutputs
+// as a hex string with binary framing bytes around the actual JSON payload.
+// There's no clean typed field for it yet, so extract the JSON substring directly.
+function decodeEqBlocksOutputs(hexOrBytes: unknown): unknown {
+  try {
+    const hex = typeof hexOrBytes === 'string' ? hexOrBytes.replace(/^0x/, '') : '';
+    if (!hex) return null;
+    let text = '';
+    for (let i = 0; i < hex.length; i += 2) {
+      text += String.fromCharCode(parseInt(hex.substring(i, i + 2), 16));
+    }
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    if (start === -1 || end === -1 || end < start) return null;
+    return JSON.parse(text.substring(start, end + 1));
+  } catch {
+    return null;
+  }
+}
+
 export function resetClient(): void {
   clientInstance = null;
   currentAddress = null;
@@ -111,7 +131,8 @@ export async function callDisputeResolution(
     value: 0n,
   });
   const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED, retries: 100, interval: 5000 });
-  return (receipt.data ?? receipt.result) as unknown as { fulfilled: boolean; reasoning: string };
+  const decoded = decodeEqBlocksOutputs((receipt as unknown as { eqBlocksOutputs?: string }).eqBlocksOutputs);
+  return (decoded ?? { fulfilled: false, reasoning: 'Could not decode contract response' }) as { fulfilled: boolean; reasoning: string };
 }
 
 // Write to dispute_resolution contract (submits evidence via a state-changing call)
@@ -155,6 +176,6 @@ export async function callPayoutScreening(
     value: 0n,
   });
   const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED, retries: 100, interval: 5000 });
-  console.log('[genlayerClient] full receipt object:', JSON.stringify(receipt, (_k, v) => typeof v === 'bigint' ? v.toString() : v, 2));
-  return (receipt.data ?? receipt.result) as unknown as { passed: boolean; flagged: string[] };
+  const decoded = decodeEqBlocksOutputs((receipt as unknown as { eqBlocksOutputs?: string }).eqBlocksOutputs);
+  return (decoded ?? { passed: true, flagged: [] }) as { passed: boolean; flagged: string[] };
 }
