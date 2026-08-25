@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Loader2, AlertCircle, CheckCircle2, Shield, ToggleLeft, ToggleRight } from 'lucide-react';
 import { AddressValidator } from '@/components/AddressValidator';
 import { usePayoutScreening } from '@/hooks/usePayoutScreening';
-import { batchSendGEN } from '@/lib/genlayerClient';
+import { sendGEN } from '@/lib/genlayerClient';
 import { genToWei, formatGEN } from '@/lib/format';
 import { isValidGenLayerAddress } from '@/lib/validation';
 import { supabase } from '@/lib/supabaseClient';
@@ -96,47 +96,40 @@ export function PayoutForm({
       setScreenResult({ passed: true, flagged: [] });
     }
 
-    // Step 2: Send GEN to all recipients in one signed transaction
+    // Step 2: Send GEN to each recipient (proven reliable — one signature per transfer)
     setStatus('sending');
     const results: typeof txResults = [];
 
-    try {
-      const amountsWei = recipients.map((r) => genToWei(r.amount));
-      const batch = await batchSendGEN(fromAddress, recipients.map((r) => r.wallet), amountsWei);
-
-      recipients.forEach((r) => {
-        results.push({
-          wallet: r.wallet,
-          hash: batch.hash,
-          success: batch.success && batch.sent.includes(r.wallet),
-        });
-      });
-
-      const totalWeiSent = amountsWei.reduce((sum, a) => sum + a, 0n);
-      await supabase.from('payout_batches').insert({
-        sender_address: fromAddress.toLowerCase(),
-        total_amount: Number(totalWeiSent),
-        recipient_count: recipients.length,
-        recipients: recipients.map((r) => ({ wallet: r.wallet, amount: r.amount })),
-        tx_hash: batch.hash,
-        status: batch.success ? 'sent' : 'failed',
-      });
-      if (batch.success) {
+    for (const recipient of recipients) {
+      try {
+        const amountWei = genToWei(recipient.amount);
+        const hash = await sendGEN(fromAddress, recipient.wallet, amountWei);
+        results.push({ wallet: recipient.wallet, hash, success: true });
         await supabase.from('public_feed').insert({
           event_type: 'payout_sent',
-          amount: Number(totalWeiSent),
+          amount: Number(amountWei),
         });
-      }
-    } catch (err) {
-      recipients.forEach((r) => {
+      } catch (err) {
         results.push({
-          wallet: r.wallet,
+          wallet: recipient.wallet,
           hash: '',
           success: false,
-          error: err instanceof Error ? err.message : 'Batch transfer failed',
+          error: err instanceof Error ? err.message : 'Transfer failed',
         });
-      });
+      }
     }
+
+    const totalWeiSent = recipients.reduce((sum, r) => {
+      try { return sum + genToWei(r.amount); } catch { return sum; }
+    }, 0n);
+    await supabase.from('payout_batches').insert({
+      sender_address: fromAddress.toLowerCase(),
+      total_amount: Number(totalWeiSent),
+      recipient_count: recipients.length,
+      recipients: recipients.map((r) => ({ wallet: r.wallet, amount: r.amount })),
+      tx_hash: results[0]?.hash ?? null,
+      status: results.every((r) => r.success) ? 'sent' : 'failed',
+    });
 
     setTxResults(results);
     setStatus('done');
