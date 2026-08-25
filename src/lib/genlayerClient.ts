@@ -176,8 +176,7 @@ export async function batchSendGEN(
     args: [recipients, amountsWei.map((a) => a.toString())],
     value: totalWei,
   });
-  // EOA transfers only execute on finalization, so wait for that status here
-  const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED, retries: 200, interval: 5000 });
+  const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED, retries: 60, interval: 5000 });
   const statusName = (receipt as unknown as { status_name?: string }).status_name;
   const success = statusName === 'ACCEPTED' || statusName === 'FINALIZED';
   return { hash: hash as string, success, sent: success ? recipients : [] };
