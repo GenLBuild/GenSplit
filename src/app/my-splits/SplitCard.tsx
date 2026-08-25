@@ -129,7 +129,7 @@ function MemberRow({
         <span className="text-xs font-semibold text-zinc-900">
           {formatGEN(member.amount_owed)}
         </span>
-        {member.txn_hash && (
+                {member.txn_hash && (
           <a
             href={`https://explorer.testnet-chain.genlayer.com/tx/${member.txn_hash}`}
             target="_blank"
@@ -142,12 +142,13 @@ function MemberRow({
         {canDispute && (
           <motion.button
             onClick={onDispute}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            title="Submit dispute"
-            className="p-1 rounded-md text-orange-500 hover:bg-orange-50 transition-colors"
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            title="Open a dispute if this payment status looks wrong — an AI-judged on-chain contract will review your claim and any evidence you provide."
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-orange-200 bg-orange-50 text-orange-600 text-xs font-semibold hover:bg-orange-100 transition-colors"
           >
             <Shield size={13} />
+            Dispute
           </motion.button>
         )}
       </div>
