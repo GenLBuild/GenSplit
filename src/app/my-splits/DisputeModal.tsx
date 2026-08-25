@@ -22,10 +22,7 @@ export function DisputeModal({ member, onClose, onResolved }: DisputeModalProps)
 
   const handleSubmit = async () => {
     if (!claimText.trim()) return;
-    const res = await submitDispute(member.id, claimText, txnHash);
-    if (res) {
-      setTimeout(() => onResolved(), 2000);
-    }
+    await submitDispute(member.id, claimText, txnHash);
   };
 
   return (
@@ -168,7 +165,7 @@ export function DisputeModal({ member, onClose, onResolved }: DisputeModalProps)
 
           {result && (
             <motion.button
-              onClick={() => { reset(); onClose(); }}
+              onClick={() => { reset(); onResolved(); onClose(); }}
               className="w-full py-2.5 rounded-xl border border-zinc-200 text-sm font-medium"
               whileHover={{ scale: 1.01 }}
             >
