@@ -53,7 +53,7 @@ export function useDisputeResolution() {
         return null;
       }
     },
-    []
+    [address]
   );
 
   const reset = useCallback(() => {
