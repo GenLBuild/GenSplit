@@ -98,24 +98,29 @@ export async function sendGEN(
   amountWei: bigint
 ): Promise<string> {
   const client = getGenLayerClient(fromAddress);
-  try {
-    const hash = await client.sendTransaction({
-      to: toAddress as `0x${string}`,
-      value: amountWei,
-      account: fromAddress as `0x${string}`,
-    });
-    // Wait for real on-chain acceptance before this counts as a success
-    await client.waitForTransactionReceipt({
-      hash: hash as any,
-      status: TransactionStatus.ACCEPTED,
-      retries: 60,
-      interval: 5000,
-    });
-    return hash as string;
-  } catch (err) {
-    console.error('[genlayerClient] sendGEN error:', err);
-    throw err;
+  const hash = await client.sendTransaction({
+    to: toAddress as `0x${string}`,
+    value: amountWei,
+    account: fromAddress as `0x${string}`,
+  });
+  // Wallet already signed and broadcast — now confirm acceptance, retrying on transient
+  // RPC errors so a flaky node doesn't discard a transfer that actually went through.
+  let lastErr: unknown = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await client.waitForTransactionReceipt({
+        hash: hash as any,
+        status: TransactionStatus.ACCEPTED,
+        retries: 60,
+        interval: 5000,
+      });
+      return hash as string;
+    } catch (err) {
+      lastErr = err;
+      console.error(`[genlayerClient] sendGEN receipt wait attempt ${attempt + 1} failed:`, err);
+    }
   }
+  throw lastErr;
 }
 
 // Call dispute_resolution contract — returns result via readContract

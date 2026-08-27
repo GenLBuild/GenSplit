@@ -85,6 +85,7 @@ export default function JoinPage({ params }: { params: Promise<{ splitId: string
     setPayError(null);
     try {
       const hash = await sendGEN(address, split.creator_address, myMember.amount_owed);
+      // sendGEN already waits for on-chain acceptance before resolving — safe to mark paid now
       await markMemberPaid(myMember.id, hash, myMember.amount_owed);
       setPaySuccess(true);
       await fetchSplit();
