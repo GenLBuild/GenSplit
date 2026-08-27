@@ -104,6 +104,13 @@ export async function sendGEN(
       value: amountWei,
       account: fromAddress as `0x${string}`,
     });
+    // Wait for real on-chain acceptance before this counts as a success
+    await client.waitForTransactionReceipt({
+      hash: hash as any,
+      status: TransactionStatus.ACCEPTED,
+      retries: 60,
+      interval: 5000,
+    });
     return hash as string;
   } catch (err) {
     console.error('[genlayerClient] sendGEN error:', err);
@@ -116,7 +123,9 @@ export async function callDisputeResolution(
   fromAddress: string,
   splitMemberId: string,
   claimText: string,
-  txnHash: string
+  txnHash: string,
+  expectedWallet: string,
+  expectedAmountWei: bigint
 ): Promise<{ fulfilled: boolean; reasoning: string }> {
   const contractAddress = process.env.NEXT_PUBLIC_GENLAYER_CONTRACT_DISPUTE;
   if (!contractAddress) {
@@ -127,7 +136,7 @@ export async function callDisputeResolution(
   const hash = await client.writeContract({
     address: contractAddress as `0x${string}`,
     functionName: 'resolve_dispute',
-    args: [splitMemberId, claimText, txnHash],
+    args: [splitMemberId, claimText, txnHash, expectedWallet, expectedAmountWei.toString()],
     value: 0n,
   });
   const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED, retries: 100, interval: 5000 });
@@ -200,6 +209,12 @@ export async function callPayoutScreening(
     value: 0n,
   });
   const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED, retries: 100, interval: 5000 });
-  const decoded = decodeEqBlocksOutputs((receipt as unknown as { eqBlocksOutputs?: string }).eqBlocksOutputs);
-  return (decoded ?? { passed: true, flagged: [] }) as { passed: boolean; flagged: string[] };
+  const decoded = decodeEqBlocksOutputs((receipt as unknown as { eqBlocksOutputs?: string }).eqBlocksOutputs) as
+    | { passed: boolean; flagged: string[] }
+    | null;
+  // Fail closed — if we can't decode the contract's answer, treat it as blocked, not clear
+  if (!decoded) {
+    throw new Error('Could not decode screening result from GenLayer — send blocked for safety.');
+  }
+  return decoded;
 }

@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { callDisputeResolution } from '@/lib/genlayerClient';
-import { flagDispute } from './useSplits';
+import { flagDispute, resolveDispute } from './useSplits';
 import { useGenLayerWallet } from './useGenLayerWallet';
 
 export interface DisputeState {
@@ -23,7 +23,9 @@ export function useDisputeResolution() {
     async (
       splitMemberId: string,
       claimText: string,
-      txnHash: string
+      txnHash: string,
+      expectedWallet: string,
+      expectedAmountWei: bigint
     ): Promise<{ fulfilled: boolean; reasoning: string } | null> => {
       const contractAddress = process.env.NEXT_PUBLIC_GENLAYER_CONTRACT_DISPUTE;
       if (!contractAddress) {
@@ -43,7 +45,10 @@ export function useDisputeResolution() {
         if (!address) {
           throw new Error('Wallet not connected');
         }
-        const result = await callDisputeResolution(address, splitMemberId, claimText, txnHash);
+        const result = await callDisputeResolution(address, splitMemberId, claimText, txnHash, expectedWallet, expectedAmountWei);
+
+        // Apply the finalized verdict to the split's real status — don't just display it
+        await resolveDispute(splitMemberId, result.fulfilled);
 
         setState({ isSubmitting: false, result, error: null });
         return result;

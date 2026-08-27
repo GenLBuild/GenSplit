@@ -76,24 +76,25 @@ export function PayoutForm({
     // Step 1: Screen payout
     setStatus('screening');
     const contractConfigured = !!process.env.NEXT_PUBLIC_GENLAYER_CONTRACT_SCREENING;
-    let screening: { passed: boolean; flagged: string[] } | null = null;
 
-    if (contractConfigured) {
-      screening = await screenAddresses(recipients.map((r) => r.wallet));
-      setScreenResult(screening);
-      if (!screening) {
-        setError(screeningError || 'Screening failed — see console for details');
-        setStatus('idle');
-        return;
-      }
-      if (!screening.passed) {
-        setStatus('idle');
-        return;
-      }
-    } else {
-      // Contract not deployed yet — skip screening, log TODO
-      // TODO: not implemented — needs NEXT_PUBLIC_GENLAYER_CONTRACT_SCREENING deployed on GenLayer
-      setScreenResult({ passed: true, flagged: [] });
+    if (!contractConfigured) {
+      // Fail closed — screening is required, never assume "passed" when the contract isn't configured
+      setError('Payout screening contract is not configured — sends are blocked until it is deployed.');
+      setStatus('idle');
+      return;
+    }
+
+    const screening = await screenAddresses(recipients.map((r) => r.wallet));
+    setScreenResult(screening);
+    if (!screening) {
+      // Fail closed — any screening error (network, config, parsing, decoding) blocks the send
+      setError(screeningError || 'Screening failed — send blocked for safety.');
+      setStatus('idle');
+      return;
+    }
+    if (!screening.passed) {
+      setStatus('idle');
+      return;
     }
 
     // Step 2: Send GEN to each recipient (proven reliable — one signature per transfer)

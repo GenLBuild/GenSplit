@@ -80,7 +80,8 @@ Rules:
                 passed = len(flagged) == 0
                 return json.dumps({"passed": passed, "flagged": flagged})
             except Exception:
-                return json.dumps({"passed": True, "flagged": []})
+                # Fail closed — any parsing/LLM/decode error blocks the batch, never silently passes
+                return json.dumps({"passed": False, "flagged": ["SCREENING_ERROR"]})
 
         final_json = gl.eq_principle.strict_eq(parse_screening_result)
         return json.loads(final_json)

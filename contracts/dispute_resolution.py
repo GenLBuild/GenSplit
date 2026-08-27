@@ -1,12 +1,3 @@
-# GenLayer Intelligent Contract: Dispute Resolution
-# 
-# Resolves payment disputes for GenSplit splits.
-# Uses gl.nondet.exec_prompt (LLM) to weigh evidence and 
-# gl.eq_principle.strict_eq for cross-validator consensus.
-#
-# Deploy via GenLayer Studio: https://studio.genlayer.com/contracts
-# Test using Studio's Read/Write Methods panel and Node Logs before wiring frontend.
-
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 from genlayer import *
 import json
@@ -15,13 +6,11 @@ import re
 class DisputeResolution(gl.Contract):
     """
     GenLayer Intelligent Contract for GenSplit dispute resolution.
-    
-    Accepts evidence (claim text + optional tx hash) and uses an LLM
-    to weigh the evidence. Validators reach consensus via strict equality.
+    Fetches the real on-chain transaction (via the GenLayer block explorer API)
+    and checks it against the split's actual amount/recipient before judging.
     """
 
     def __init__(self):
-        # No persistent state needed — each dispute is stateless
         pass
 
     @gl.public.write
@@ -29,31 +18,45 @@ class DisputeResolution(gl.Contract):
         self,
         split_member_id: str,
         claim_text: str,
-        txn_hash: str
+        txn_hash: str,
+        expected_wallet: str,
+        expected_amount_wei: str,
     ) -> dict:
-        """
-        Resolve a dispute for a GenSplit payment.
-        
-        Args:
-            split_member_id: UUID of the split_members row being disputed
-            claim_text: Human-readable claim text submitted as evidence
-            txn_hash: Optional GenLayer transaction hash proving payment
-            
-        Returns:
-            {"fulfilled": bool, "reasoning": str}
-        """
-
-        # Validate inputs
         if not split_member_id or not claim_text:
             return {"fulfilled": False, "reasoning": "Missing required evidence fields."}
 
-        # Check tx hash format — a valid GenLayer tx hash is 0x + 64 hex chars
         has_valid_txhash = bool(
             txn_hash and re.match(r'^0x[0-9a-fA-F]{64}$', txn_hash.strip())
         )
 
-        # Build the evidence summary for the LLM
-        evidence_summary = f"""
+        def parse_result() -> str:
+            verification_summary = "No transaction hash provided — nothing to verify on-chain."
+            onchain_verified = False
+
+            if has_valid_txhash:
+                try:
+                    api_url = f"https://explorer.testnet-chain.genlayer.com/api/v2/transactions/{txn_hash.strip()}"
+                    raw = gl.nondet.web.get(api_url, mode="text")
+                    tx_data = json.loads(raw)
+
+                    actual_to = str(tx_data.get("to", {}).get("hash", "")).lower()
+                    actual_value = str(tx_data.get("value", ""))
+                    expected_to = expected_wallet.strip().lower()
+
+                    to_matches = actual_to == expected_to
+                    value_matches = actual_value == str(expected_amount_wei).strip()
+
+                    onchain_verified = to_matches and value_matches
+                    verification_summary = (
+                        f"On-chain lookup succeeded. Recipient match: {to_matches} "
+                        f"(chain: {actual_to}, expected: {expected_to}). "
+                        f"Amount match: {value_matches} "
+                        f"(chain: {actual_value} wei, expected: {expected_amount_wei} wei)."
+                    )
+                except Exception as e:
+                    verification_summary = f"Could not fetch/parse on-chain transaction data: {str(e)[:200]}"
+
+            evidence_summary = f"""
 You are an impartial dispute resolver for a crypto payment splitting application called GenSplit.
 
 A dispute has been submitted for split member ID: {split_member_id}
@@ -65,27 +68,27 @@ Claim submitted by the disputing party:
 
 Transaction hash provided: {"Yes — " + txn_hash if has_valid_txhash else "None provided or invalid format"}
 
-Your task: Determine whether the payment should be considered FULFILLED based on the evidence.
+Independent on-chain verification result (ground truth, not from the claimant):
+---
+{verification_summary}
+---
+
+Your task: Determine whether the payment should be considered FULFILLED.
 
 Rules:
-1. If a valid transaction hash (0x + 64 hex chars) is provided AND the claim is coherent and credible, lean towards fulfilled=true.
-2. If no valid transaction hash is provided but the claim text contains compelling evidence (e.g., screenshots described, confirmation numbers), you may still rule fulfilled=true.
-3. If the claim text is empty, nonsensical, or purely accusatory without evidence, rule fulfilled=false.
-4. If the claim text describes a legitimate technical issue (wallet error, network failure, etc.), rule fulfilled=false and explain what is needed.
-5. Be concise and fair in your reasoning.
+1. If on-chain verification confirms the transaction matches the expected recipient and amount, rule fulfilled=true.
+2. If on-chain verification explicitly shows a mismatch (wrong recipient or wrong amount), rule fulfilled=false regardless of the claim text.
+3. If no transaction hash was provided or on-chain data could not be fetched, judge based on claim text alone per the original rules: nonsensical/empty claims -> false, credible technical-issue explanations -> false with guidance, otherwise use judgment.
+4. Always prioritize the on-chain verification result over the claim text when both are available.
+5. Be concise and fair in your reasoning, and mention whether on-chain verification was used.
 
 Respond ONLY with valid JSON in exactly this format:
 {{"fulfilled": true_or_false, "reasoning": "one or two sentence explanation"}}
 
 Do not add any text outside the JSON.
 """
-
-        # Parse and validate the result using equivalence principle
-        def parse_result() -> str:
             try:
-                # Use GenLayer's nondeterministic LLM execution inside the eq_principle block
                 result_str = gl.nondet.exec_prompt(evidence_summary)
-                # Strip markdown code fences if present
                 cleaned = result_str.strip()
                 if cleaned.startswith("```"):
                     lines = cleaned.split("\n")
@@ -100,6 +103,5 @@ Do not add any text outside the JSON.
                     "reasoning": f"Could not parse LLM response. Raw: {result_str[:200]}"
                 })
 
-        # Validators reach consensus via strict equality on the JSON output
         final_json = gl.eq_principle.strict_eq(parse_result)
         return json.loads(final_json)

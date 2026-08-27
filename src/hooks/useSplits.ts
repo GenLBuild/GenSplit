@@ -168,3 +168,20 @@ export async function flagDispute(memberId: string): Promise<void> {
 
   if (error) throw error;
 }
+
+// Apply the GenLayer contract's finalized verdict to the actual split_member row
+export async function resolveDispute(
+  memberId: string,
+  fulfilled: boolean
+): Promise<void> {
+  const { error } = await supabase
+    .from('split_members')
+    .update({
+      disputed: false,
+      paid: fulfilled,
+      invalid_address: !fulfilled,
+    })
+    .eq('id', memberId);
+
+  if (error) throw error;
+}

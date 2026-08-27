@@ -22,7 +22,7 @@ export function DisputeModal({ member, onClose, onResolved }: DisputeModalProps)
 
   const handleSubmit = async () => {
     if (!claimText.trim()) return;
-    await submitDispute(member.id, claimText, txnHash);
+    await submitDispute(member.id, claimText, txnHash, member.wallet_address, member.amount_owed);
   };
 
   return (
