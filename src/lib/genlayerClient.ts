@@ -103,11 +103,11 @@ export async function sendGEN(
     value: amountWei,
     account: fromAddress as `0x${string}`,
   });
-  // Confirm acceptance before recording success. Plain value transfers don't reliably
-  // resolve via waitForTransactionReceipt on this SDK, so verify via getTransaction
-  // instead, which reflects the wallet's own on-chain confirmation.
+  // GenLayer transfers go through real consensus rounds (proposing, committing,
+  // revealing) before reaching ACCEPTED — this genuinely takes time, not a bug.
+  // Poll patiently rather than assuming failure early.
   let lastErr: unknown = null;
-  for (let attempt = 0; attempt < 10; attempt++) {
+  for (let attempt = 0; attempt < 40; attempt++) {
     try {
       const tx = await client.getTransaction({ hash: hash as any });
       const statusName = (tx as unknown as { status_name?: string })?.status_name;
@@ -117,10 +117,10 @@ export async function sendGEN(
     } catch (err) {
       lastErr = err;
     }
-    await new Promise((r) => setTimeout(r, 3000));
+    await new Promise((r) => setTimeout(r, 4000));
   }
   console.error('[genlayerClient] sendGEN: could not confirm acceptance', lastErr);
-  throw new Error('Could not confirm transfer acceptance on-chain within timeout.');
+  throw new Error('Transaction is still going through consensus — check My Splits shortly, it may still complete.');
 }
 
 // Call dispute_resolution contract — returns result via readContract
