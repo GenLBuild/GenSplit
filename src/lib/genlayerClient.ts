@@ -106,13 +106,13 @@ export async function sendGEN(
   // Wallet already signed and broadcast — now confirm acceptance, retrying on transient
   // RPC errors so a flaky node doesn't discard a transfer that actually went through.
   let lastErr: unknown = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
       await client.waitForTransactionReceipt({
         hash: hash as any,
         status: TransactionStatus.ACCEPTED,
-        retries: 60,
-        interval: 5000,
+        retries: 15,
+        interval: 3000,
       });
       return hash as string;
     } catch (err) {
