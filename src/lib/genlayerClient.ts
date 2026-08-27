@@ -103,24 +103,20 @@ export async function sendGEN(
     value: amountWei,
     account: fromAddress as `0x${string}`,
   });
-  // GenLayer transfers go through real consensus rounds (proposing, committing,
-  // revealing) before reaching ACCEPTED — this genuinely takes time, not a bug.
-  // Poll patiently rather than assuming failure early.
-  let lastErr: unknown = null;
-  for (let attempt = 0; attempt < 40; attempt++) {
-    try {
-      const tx = await client.getTransaction({ hash: hash as any });
-      const statusName = (tx as unknown as { status_name?: string })?.status_name;
-      if (statusName === 'ACCEPTED' || statusName === 'FINALIZED') {
-        return hash as string;
-      }
-    } catch (err) {
-      lastErr = err;
-    }
-    await new Promise((r) => setTimeout(r, 4000));
+  // GenLayer transfers go through real consensus rounds before reaching ACCEPTED —
+  // this is genuine network time, not something our polling can speed up.
+  try {
+    await client.waitForTransactionReceipt({
+      hash: hash as any,
+      status: TransactionStatus.ACCEPTED,
+      retries: 30,
+      interval: 3000,
+    });
+    return hash as string;
+  } catch (err) {
+    console.error('[genlayerClient] sendGEN: consensus did not complete in time', err);
+    throw new Error('Transaction sent, but consensus is still finalizing — it may complete shortly. Check My Splits in a minute.');
   }
-  console.error('[genlayerClient] sendGEN: could not confirm acceptance', lastErr);
-  throw new Error('Transaction is still going through consensus — check My Splits shortly, it may still complete.');
 }
 
 // Call dispute_resolution contract — returns result via readContract
