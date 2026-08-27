@@ -212,7 +212,7 @@ export default function JoinPage({ params }: { params: Promise<{ splitId: string
                     className="w-full flex items-center justify-center gap-2 bg-black text-white py-3 rounded-xl font-semibold disabled:opacity-50"
                   >
                     {paying && <Loader2 size={16} className="animate-spin" />}
-                    {paying ? 'Sending GEN…' : `Pay ${formatGEN(myMember.amount_owed)}`}
+                    {paying ? 'Confirming on-chain (can take a few minutes)…' : `Pay ${formatGEN(myMember.amount_owed)}`}
                   </motion.button>
                 )}
               </div>

@@ -103,19 +103,19 @@ export async function sendGEN(
     value: amountWei,
     account: fromAddress as `0x${string}`,
   });
-  // GenLayer transfers go through real consensus rounds before reaching ACCEPTED —
-  // this is genuine network time, not something our polling can speed up.
+  // GenLayer's own docs use retries:100, interval:5000 (~8 min) for ACCEPTED — this is
+  // genuinely how long testnet consensus can take, not something to work around.
   try {
     await client.waitForTransactionReceipt({
       hash: hash as any,
       status: TransactionStatus.ACCEPTED,
-      retries: 30,
-      interval: 3000,
+      retries: 100,
+      interval: 5000,
     });
     return hash as string;
   } catch (err) {
-    console.error('[genlayerClient] sendGEN: consensus did not complete in time', err);
-    throw new Error('Transaction sent, but consensus is still finalizing — it may complete shortly. Check My Splits in a minute.');
+    console.error('[genlayerClient] sendGEN: acceptance not confirmed within timeout', err);
+    throw new Error('Transaction sent but not yet confirmed after several minutes. It may still complete — check My Splits shortly.');
   }
 }
 
