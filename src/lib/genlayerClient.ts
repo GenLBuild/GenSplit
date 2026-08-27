@@ -103,24 +103,24 @@ export async function sendGEN(
     value: amountWei,
     account: fromAddress as `0x${string}`,
   });
-  // Wallet already signed and broadcast — now confirm acceptance, retrying on transient
-  // RPC errors so a flaky node doesn't discard a transfer that actually went through.
+  // Confirm acceptance before recording success. Plain value transfers don't reliably
+  // resolve via waitForTransactionReceipt on this SDK, so verify via getTransaction
+  // instead, which reflects the wallet's own on-chain confirmation.
   let lastErr: unknown = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < 10; attempt++) {
     try {
-      await client.waitForTransactionReceipt({
-        hash: hash as any,
-        status: TransactionStatus.ACCEPTED,
-        retries: 15,
-        interval: 3000,
-      });
-      return hash as string;
+      const tx = await client.getTransaction({ hash: hash as any });
+      const statusName = (tx as unknown as { status_name?: string })?.status_name;
+      if (statusName === 'ACCEPTED' || statusName === 'FINALIZED') {
+        return hash as string;
+      }
     } catch (err) {
       lastErr = err;
-      console.error(`[genlayerClient] sendGEN receipt wait attempt ${attempt + 1} failed:`, err);
     }
+    await new Promise((r) => setTimeout(r, 3000));
   }
-  throw lastErr;
+  console.error('[genlayerClient] sendGEN: could not confirm acceptance', lastErr);
+  throw new Error('Could not confirm transfer acceptance on-chain within timeout.');
 }
 
 // Call dispute_resolution contract — returns result via readContract
