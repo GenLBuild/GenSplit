@@ -10,7 +10,7 @@
     "agent:close-splits": "tsx agent/close-splits.ts"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.112.3",
+    "@supabase/supabase-js": "^2.112.4",
     "@types/papaparse": "^5.5.2",
     "clsx": "^2.1.1",
     "dotenv": "17.3.1",
