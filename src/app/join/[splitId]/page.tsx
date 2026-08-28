@@ -9,8 +9,8 @@ import { useGenLayerWallet } from '@/hooks/useGenLayerWallet';
 import { WalletConnectButton } from '@/components/WalletConnectButton';
 import { StatusBadge } from '@/components/StatusBadge';
 import { formatGEN, shortenAddress, formatDate, toBigInt } from '@/lib/format';
-import { sendGEN } from '@/lib/genlayerClient';
-import { markMemberPaid } from '@/hooks/useSplits';
+import { sendGENSendOnly } from '@/lib/genlayerClient';
+import { markMemberConfirming } from '@/hooks/useSplits';
 import type { Split, SplitMember } from '@/types/split';
 
 interface RawSplit {
@@ -30,6 +30,7 @@ interface RawMember {
   wallet_address: string;
   amount_owed: number;
   paid: boolean;
+  payment_status: 'pending' | 'confirming' | 'paid';
   invalid_address: boolean;
   disputed: boolean;
   txn_hash: string | null;
@@ -54,23 +55,18 @@ export default function JoinPage({ params }: { params: Promise<{ splitId: string
     setVerifying(true);
     setManualError(null);
     try {
-      const apiUrl = `https://explorer.testnet-chain.genlayer.com/api/v2/transactions/${manualTxHash.trim()}`;
-      const res = await fetch(apiUrl);
-      if (!res.ok) throw new Error('Transaction not found on the explorer yet — try again shortly.');
-      const tx = await res.json();
-      const actualTo = String(tx?.to?.hash ?? '').toLowerCase();
-      const actualValue = String(tx?.value ?? '');
-      const expectedTo = split.creator_address.toLowerCase();
-      const expectedValue = myMember.amount_owed.toString();
-
-      if (actualTo !== expectedTo) {
-        throw new Error('This transaction was not sent to the split creator\'s wallet.');
-      }
-      if (actualValue !== expectedValue) {
-        throw new Error(`Amount mismatch — this tx sent ${actualValue} wei, expected ${expectedValue} wei.`);
-      }
-
-      await markMemberPaid(myMember.id, manualTxHash.trim(), myMember.amount_owed);
+      const res = await fetch('/api/verify-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          memberId: myMember.id,
+          txnHash: manualTxHash.trim(),
+          expectedTo: split.creator_address,
+          expectedValueWei: myMember.amount_owed.toString(),
+        }),
+      });
+      const result = await res.json();
+      if (!result.ok) throw new Error(result.reason || 'Could not verify this transaction.');
       setPaySuccess(true);
       setPayError(null);
       await fetchSplit();
@@ -119,9 +115,10 @@ export default function JoinPage({ params }: { params: Promise<{ splitId: string
     setPaying(true);
     setPayError(null);
     try {
-      const hash = await sendGEN(address, split.creator_address, myMember.amount_owed);
-      // sendGEN already waits for on-chain acceptance before resolving — safe to mark paid now
-      await markMemberPaid(myMember.id, hash, myMember.amount_owed);
+      const hash = await sendGENSendOnly(address, split.creator_address, myMember.amount_owed);
+      // Record as "confirming" immediately — don't block on GenLayer's own status wait,
+      // the QStash agent verifies real acceptance in the background every 5 minutes.
+      await markMemberConfirming(myMember.id, hash);
       setPaySuccess(true);
       await fetchSplit();
     } catch (err) {
@@ -192,7 +189,7 @@ export default function JoinPage({ params }: { params: Promise<{ splitId: string
                     <span className="font-mono text-xs text-zinc-500">{shortenAddress(m.wallet_address)}</span>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold">{formatGEN(m.amount_owed)}</span>
-                      <StatusBadge status={m.paid ? 'paid' : m.invalid_address ? 'declined' : 'pending'} />
+                      <StatusBadge status={m.paid ? 'paid' : m.payment_status === 'confirming' ? 'confirming' : m.invalid_address ? 'declined' : 'pending'} />
                     </div>
                   </div>
                 ))}
@@ -256,6 +253,35 @@ export default function JoinPage({ params }: { params: Promise<{ splitId: string
                   <div className="flex items-center gap-2 text-emerald-600">
                     <CheckCircle2 size={18} />
                     <span className="font-semibold">Already paid</span>
+                  </div>
+                ) : myMember.payment_status === 'confirming' ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sky-600">
+                      <Loader2 size={18} className="animate-spin" />
+                      <span className="font-semibold">Sent — confirming on-chain (usually a few minutes)</span>
+                    </div>
+                    <details className="text-xs">
+                      <summary className="cursor-pointer text-zinc-500 hover:text-zinc-800">
+                        Check now manually
+                      </summary>
+                      <div className="mt-2 space-y-2 p-3 bg-zinc-50 rounded-lg border border-zinc-200">
+                        <input
+                          type="text"
+                          value={manualTxHash || myMember.txn_hash || ''}
+                          onChange={(e) => setManualTxHash(e.target.value)}
+                          placeholder="0x… transaction hash"
+                          className="w-full font-mono text-xs px-2 py-1.5 rounded border border-zinc-200"
+                        />
+                        <button
+                          onClick={handleManualVerify}
+                          disabled={verifying}
+                          className="text-xs font-semibold bg-black text-white px-3 py-1.5 rounded-lg disabled:opacity-40"
+                        >
+                          {verifying ? 'Checking…' : 'Verify now'}
+                        </button>
+                        {manualError && <p className="text-red-500">{manualError}</p>}
+                      </div>
+                    </details>
                   </div>
                 ) : myMember.invalid_address ? (
                   <div className="flex items-center gap-2 text-zinc-500">

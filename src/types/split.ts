@@ -18,6 +18,7 @@ export interface SplitMember {
   wallet_address: string;
   amount_owed: bigint;
   paid: boolean;
+  payment_status: 'pending' | 'confirming' | 'paid';
   invalid_address: boolean; // reused to mark declined payments
   disputed: boolean;
   txn_hash: string | null;

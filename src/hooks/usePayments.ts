@@ -10,6 +10,7 @@ export interface MyRequest {
   wallet_address: string;
   amount_owed: bigint;
   paid: boolean;
+  payment_status?: 'pending' | 'confirming' | 'paid';
   invalid_address: boolean;
   disputed: boolean;
   txn_hash: string | null;
@@ -50,6 +51,7 @@ export function useMyRequests(walletAddress: string | null) {
         wallet_address: string;
         amount_owed: number;
         paid: boolean;
+        payment_status?: 'pending' | 'confirming' | 'paid';
         invalid_address: boolean;
         disputed: boolean;
         txn_hash: string | null;

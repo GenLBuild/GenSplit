@@ -92,6 +92,23 @@ export async function getBalance(address: string): Promise<bigint> {
 }
 
 // Send a native GEN transfer — returns tx hash
+// Sends and returns the hash immediately — does NOT wait for acceptance.
+// Used by the join-page flow, which records "confirming" and lets the
+// background agent verify real acceptance instead of blocking the browser.
+export async function sendGENSendOnly(
+  fromAddress: string,
+  toAddress: string,
+  amountWei: bigint
+): Promise<string> {
+  const client = getGenLayerClient(fromAddress);
+  const hash = await client.sendTransaction({
+    to: toAddress as `0x${string}`,
+    value: amountWei,
+    account: fromAddress as `0x${string}`,
+  });
+  return hash as string;
+}
+
 export async function sendGEN(
   fromAddress: string,
   toAddress: string,

@@ -22,6 +22,7 @@ interface RawSplitMember {
   wallet_address: string;
   amount_owed: number;
   paid: boolean;
+  payment_status?: 'pending' | 'confirming' | 'paid';
   invalid_address: boolean;
   disputed: boolean;
   txn_hash: string | null;
@@ -40,6 +41,7 @@ function mapMember(raw: RawSplitMember): SplitMember {
   return {
     ...raw,
     amount_owed: toBigInt(raw.amount_owed),
+    payment_status: raw.payment_status ?? (raw.paid ? 'paid' : 'pending'),
   };
 }
 
@@ -119,6 +121,19 @@ export async function createSplit(input: CreateSplitInput): Promise<string> {
   return splitId;
 }
 
+// Called the instant a payer's wallet returns a tx hash — records it as sent
+// but NOT yet paid. Nothing here blocks on-chain confirmation.
+export async function markMemberConfirming(
+  memberId: string,
+  txnHash: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('split_members')
+    .update({ payment_status: 'confirming', txn_hash: txnHash })
+    .eq('id', memberId);
+  if (error) throw error;
+}
+
 export async function markMemberPaid(
   memberId: string,
   txnHash: string,
@@ -130,7 +145,7 @@ export async function markMemberPaid(
   // Mark member paid
   const { error: memberErr } = await supabase
     .from('split_members')
-    .update({ paid: true, txn_hash: txnHash })
+    .update({ paid: true, payment_status: 'paid', txn_hash: txnHash })
     .eq('id', memberId);
 
   if (memberErr) throw memberErr;

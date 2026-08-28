@@ -5,8 +5,8 @@ import { motion } from 'framer-motion';
 import { CheckCircle2, Loader2, X, ExternalLink } from 'lucide-react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { formatGEN, formatDate, shortenAddress } from '@/lib/format';
-import { sendGEN } from '@/lib/genlayerClient';
-import { markMemberPaid, markMemberDeclined } from '@/hooks/useSplits';
+import { sendGENSendOnly } from '@/lib/genlayerClient';
+import { markMemberConfirming, markMemberDeclined } from '@/hooks/useSplits';
 import type { MyRequest } from '@/hooks/usePayments';
 
 interface RequestCardProps {
@@ -23,12 +23,14 @@ export function RequestCard({ request, onUpdate }: RequestCardProps) {
     setPaying(true);
     setError(null);
     try {
-      const hash = await sendGEN(
+      const hash = await sendGENSendOnly(
         request.wallet_address,
         request.split?.creator_address ?? '',
         request.amount_owed
       );
-      await markMemberPaid(request.id, hash, request.amount_owed);
+      // Record as "confirming" immediately — the QStash agent verifies real
+      // on-chain acceptance in the background every 5 minutes.
+      await markMemberConfirming(request.id, hash);
       onUpdate();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Payment failed');
@@ -49,7 +51,15 @@ export function RequestCard({ request, onUpdate }: RequestCardProps) {
     }
   };
 
-  const status = request.paid ? 'paid' : request.invalid_address ? 'declined' : request.disputed ? 'disputed' : 'pending';
+  const status = request.paid
+    ? 'paid'
+    : request.disputed
+    ? 'disputed'
+    : request.payment_status === 'confirming'
+    ? 'confirming'
+    : request.invalid_address
+    ? 'declined'
+    : 'pending';
 
   return (
     <motion.div

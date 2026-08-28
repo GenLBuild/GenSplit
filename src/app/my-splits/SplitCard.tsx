@@ -113,6 +113,8 @@ function MemberRow({
     ? 'paid'
     : member.disputed
     ? 'disputed'
+    : member.payment_status === 'confirming'
+    ? 'confirming'
     : member.invalid_address
     ? 'declined'
     : 'pending';
