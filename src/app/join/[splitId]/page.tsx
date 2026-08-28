@@ -45,6 +45,41 @@ export default function JoinPage({ params }: { params: Promise<{ splitId: string
   const [paying, setPaying] = useState(false);
   const [paySuccess, setPaySuccess] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
+  const [manualTxHash, setManualTxHash] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [manualError, setManualError] = useState<string | null>(null);
+
+  const handleManualVerify = async () => {
+    if (!myMember || !split || !manualTxHash.trim()) return;
+    setVerifying(true);
+    setManualError(null);
+    try {
+      const apiUrl = `https://explorer.testnet-chain.genlayer.com/api/v2/transactions/${manualTxHash.trim()}`;
+      const res = await fetch(apiUrl);
+      if (!res.ok) throw new Error('Transaction not found on the explorer yet — try again shortly.');
+      const tx = await res.json();
+      const actualTo = String(tx?.to?.hash ?? '').toLowerCase();
+      const actualValue = String(tx?.value ?? '');
+      const expectedTo = split.creator_address.toLowerCase();
+      const expectedValue = myMember.amount_owed.toString();
+
+      if (actualTo !== expectedTo) {
+        throw new Error('This transaction was not sent to the split creator\'s wallet.');
+      }
+      if (actualValue !== expectedValue) {
+        throw new Error(`Amount mismatch — this tx sent ${actualValue} wei, expected ${expectedValue} wei.`);
+      }
+
+      await markMemberPaid(myMember.id, manualTxHash.trim(), myMember.amount_owed);
+      setPaySuccess(true);
+      setPayError(null);
+      await fetchSplit();
+    } catch (err) {
+      setManualError(err instanceof Error ? err.message : 'Could not verify this transaction.');
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const fetchSplit = useCallback(async () => {
     try {
@@ -190,7 +225,31 @@ export default function JoinPage({ params }: { params: Promise<{ splitId: string
                 <p className="text-3xl font-black text-zinc-900">{formatGEN(myMember.amount_owed)}</p>
 
                 {payError && (
-                  <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg p-2">{payError}</p>
+                  <div className="space-y-2">
+                    <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg p-2">{payError}</p>
+                    <details className="text-xs">
+                      <summary className="cursor-pointer text-zinc-500 hover:text-zinc-800">
+                        Already sent this payment? Verify it manually
+                      </summary>
+                      <div className="mt-2 space-y-2 p-3 bg-zinc-50 rounded-lg border border-zinc-200">
+                        <input
+                          type="text"
+                          value={manualTxHash}
+                          onChange={(e) => setManualTxHash(e.target.value)}
+                          placeholder="0x… transaction hash"
+                          className="w-full font-mono text-xs px-2 py-1.5 rounded border border-zinc-200"
+                        />
+                        <button
+                          onClick={handleManualVerify}
+                          disabled={verifying || !manualTxHash.trim()}
+                          className="text-xs font-semibold bg-black text-white px-3 py-1.5 rounded-lg disabled:opacity-40"
+                        >
+                          {verifying ? 'Checking…' : 'Verify & mark paid'}
+                        </button>
+                        {manualError && <p className="text-red-500">{manualError}</p>}
+                      </div>
+                    </details>
+                  </div>
                 )}
 
                 {myMember.paid ? (
