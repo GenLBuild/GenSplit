@@ -94,7 +94,9 @@ export async function POST(req: NextRequest) {
     }
     const supabase = getSupabase();
     const result = await checkOne(supabase, memberId, txnHash, expectedTo, expectedValueWei);
-    return NextResponse.json(result);
+    return NextResponse.json(
+      JSON.parse(JSON.stringify(result, (_k, v) => (typeof v === 'bigint' ? v.toString() : v)))
+    );
   } catch (err) {
     console.error('[api/verify-payment] error:', err);
     return NextResponse.json(
@@ -135,7 +137,11 @@ export async function GET() {
         details.push({ memberId: m.id, txnHash: m.txn_hash, error: e instanceof Error ? e.message : String(e) });
       }
     }
-    return NextResponse.json({ ok: true, checked, confirmed, details });
+    return NextResponse.json(
+      JSON.parse(JSON.stringify({ ok: true, checked, confirmed, details }, (_k, v) =>
+        typeof v === 'bigint' ? v.toString() : v
+      ))
+    );
   } catch (err) {
     console.error('[api/verify-payment] sweep error:', err);
     return NextResponse.json(
