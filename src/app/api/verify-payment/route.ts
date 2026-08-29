@@ -43,8 +43,8 @@ async function checkOne(
     tx = await client.waitForTransactionReceipt({
       hash: txnHash as any,
       status: TransactionStatus.ACCEPTED,
-      retries: 10,
-      interval: 3000,
+      retries: 1,
+      interval: 500,
     });
   } catch {
     return {
