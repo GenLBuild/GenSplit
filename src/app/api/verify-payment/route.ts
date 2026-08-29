@@ -1,15 +1,26 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createGenLayerClient } from 'genlayer-js';
-import { testnetBradbury } from 'genlayer-js/chains';
 import { TransactionStatus } from 'genlayer-js/types';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+// genlayer-js's built-in testnetBradbury chain object doesn't match the real
+// network (confirmed by MetaMask prompting the wrong network earlier) — define
+// the real chain manually instead, matching what's confirmed working.
+const realGenLayerChain = {
+  id: 4221,
+  name: 'GenLayer Testnet Chain',
+  nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://rpc.testnet-chain.genlayer.com'] },
+  },
+} as const;
+
 function getGenLayerServerClient() {
   return createGenLayerClient({
-    chain: testnetBradbury,
+    chain: realGenLayerChain as any,
     endpoint: process.env.NEXT_PUBLIC_GENLAYER_RPC_URL || 'https://rpc.testnet-chain.genlayer.com',
   });
 }
