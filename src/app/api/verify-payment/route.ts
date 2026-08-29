@@ -5,6 +5,7 @@ import { testnetBradbury } from 'genlayer-js/chains';
 import { TransactionStatus } from 'genlayer-js/types';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 function getGenLayerServerClient() {
   return createGenLayerClient({
@@ -29,13 +30,18 @@ async function checkOne(
 ) {
   const client = getGenLayerServerClient();
 
-  // Use GenLayer's own consensus status — this is authoritative, unlike plain
-  // EVM receipt status, since GenLayer runs its own validator rounds on top.
+  // Use GenLayer's own consensus status via the receipt (not getTransaction,
+  // which doesn't carry status_name) — authoritative, unlike plain EVM status.
   let tx: unknown;
   try {
-    tx = await client.getTransaction({ hash: txnHash as any });
+    tx = await client.waitForTransactionReceipt({
+      hash: txnHash as any,
+      status: TransactionStatus.ACCEPTED,
+      retries: 3,
+      interval: 3000,
+    });
   } catch {
-    return { ok: false, reason: 'Transaction not found on-chain yet.' };
+    return { ok: false, reason: 'Still validating on GenLayer — not yet accepted.' };
   }
 
   const statusName = (tx as { status_name?: string })?.status_name;
