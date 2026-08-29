@@ -1,26 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createGenLayerClient } from 'genlayer-js';
+import { testnetBradbury } from 'genlayer-js/chains';
 import { TransactionStatus } from 'genlayer-js/types';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-// genlayer-js's built-in testnetBradbury chain object doesn't match the real
-// network (confirmed by MetaMask prompting the wrong network earlier) — define
-// the real chain manually instead, matching what's confirmed working.
-const realGenLayerChain = {
-  id: 4221,
-  name: 'GenLayer Testnet Chain',
-  nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
-  rpcUrls: {
-    default: { http: ['https://rpc.testnet-chain.genlayer.com'] },
-  },
-} as const;
-
 function getGenLayerServerClient() {
   return createGenLayerClient({
-    chain: realGenLayerChain as any,
+    chain: testnetBradbury,
     endpoint: process.env.NEXT_PUBLIC_GENLAYER_RPC_URL || 'https://rpc.testnet-chain.genlayer.com',
   });
 }
@@ -41,28 +30,16 @@ async function checkOne(
 ) {
   const client = getGenLayerServerClient();
 
-  // Debug: fetch the raw transaction directly so we can see its real shape
-  let rawTx: unknown = null;
-  try {
-    rawTx = await client.getTransaction({ hash: txnHash as any });
-  } catch (e) {
-    rawTx = { fetchError: e instanceof Error ? e.message : String(e) };
-  }
-
   let tx: unknown;
   try {
     tx = await client.waitForTransactionReceipt({
       hash: txnHash as any,
       status: TransactionStatus.ACCEPTED,
-      retries: 1,
-      interval: 500,
+      retries: 12,
+      interval: 4000,
     });
   } catch {
-    return {
-      ok: false,
-      reason: 'Still validating on GenLayer — not yet accepted.',
-      debugRawTx: rawTx,
-    };
+    return { ok: false, reason: 'Still validating on GenLayer — not yet accepted.' };
   }
 
   const statusName = (tx as { status_name?: string })?.status_name;
