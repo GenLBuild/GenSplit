@@ -73,6 +73,7 @@ export async function GET() {
 
     let checked = 0;
     let confirmed = 0;
+    const details: unknown[] = [];
     for (const m of confirming ?? []) {
       if (!m.txn_hash) continue;
       checked++;
@@ -86,11 +87,12 @@ export async function GET() {
           String(m.amount_owed)
         );
         if (result.ok) confirmed++;
+        details.push({ memberId: m.id, txnHash: m.txn_hash, expectedTo: creatorAddress, expectedAmount: String(m.amount_owed), result });
       } catch (e) {
-        console.error(`[api/verify-payment] sweep failed for member ${m.id}:`, e);
+        details.push({ memberId: m.id, txnHash: m.txn_hash, error: e instanceof Error ? e.message : String(e) });
       }
     }
-    return NextResponse.json({ ok: true, checked, confirmed });
+    return NextResponse.json({ ok: true, checked, confirmed, details });
   } catch (err) {
     console.error('[api/verify-payment] sweep error:', err);
     return NextResponse.json(
