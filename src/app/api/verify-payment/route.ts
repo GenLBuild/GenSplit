@@ -35,8 +35,8 @@ async function checkOne(
     tx = await client.waitForTransactionReceipt({
       hash: txnHash as any,
       status: TransactionStatus.ACCEPTED,
-      retries: 12,
-      interval: 4000,
+      retries: 4,
+      interval: 3000,
     });
   } catch {
     return { ok: false, reason: 'Still validating on GenLayer — not yet accepted.' };
