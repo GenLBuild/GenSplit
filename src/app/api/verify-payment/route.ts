@@ -30,18 +30,28 @@ async function checkOne(
 ) {
   const client = getGenLayerServerClient();
 
-  // Use GenLayer's own consensus status via the receipt (not getTransaction,
-  // which doesn't carry status_name) — authoritative, unlike plain EVM status.
+  // Debug: fetch the raw transaction directly so we can see its real shape
+  let rawTx: unknown = null;
+  try {
+    rawTx = await client.getTransaction({ hash: txnHash as any });
+  } catch (e) {
+    rawTx = { fetchError: e instanceof Error ? e.message : String(e) };
+  }
+
   let tx: unknown;
   try {
     tx = await client.waitForTransactionReceipt({
       hash: txnHash as any,
       status: TransactionStatus.ACCEPTED,
-      retries: 3,
+      retries: 10,
       interval: 3000,
     });
   } catch {
-    return { ok: false, reason: 'Still validating on GenLayer — not yet accepted.' };
+    return {
+      ok: false,
+      reason: 'Still validating on GenLayer — not yet accepted.',
+      debugRawTx: rawTx,
+    };
   }
 
   const statusName = (tx as { status_name?: string })?.status_name;
