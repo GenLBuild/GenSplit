@@ -10,6 +10,18 @@ function getSupabase() {
   return createClient(url, key);
 }
 
+async function rpcCall(method: string, params: unknown[]) {
+  const rpcUrl = process.env.NEXT_PUBLIC_GENLAYER_RPC_URL || 'https://rpc.testnet-chain.genlayer.com';
+  const res = await fetch(rpcUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+  });
+  const json = await res.json();
+  if (json.error) throw new Error(json.error.message || 'RPC error');
+  return json.result;
+}
+
 async function checkOne(
   supabase: ReturnType<typeof getSupabase>,
   memberId: string,
@@ -17,20 +29,27 @@ async function checkOne(
   expectedTo: string,
   expectedValueWei: string
 ) {
-  const apiUrl = `https://explorer.testnet-chain.genlayer.com/api/v2/transactions/${txnHash}`;
-  const res = await fetch(apiUrl);
-  if (!res.ok) {
-    return { ok: false, reason: 'Transaction not found on the explorer yet.' };
+  const tx = await rpcCall('eth_getTransactionByHash', [txnHash]);
+  if (!tx) {
+    return { ok: false, reason: 'Transaction not found on-chain yet.' };
   }
-  const tx = await res.json();
-  const actualTo = String(tx?.to?.hash ?? '').toLowerCase();
-  const actualValue = String(tx?.value ?? '');
+
+  const receipt = await rpcCall('eth_getTransactionReceipt', [txnHash]);
+  if (!receipt) {
+    return { ok: false, reason: 'Transaction found but no receipt yet — still pending.' };
+  }
+  if (receipt.status !== '0x1') {
+    return { ok: false, reason: 'Transaction was reverted on-chain.' };
+  }
+
+  const actualTo = String(tx.to ?? '').toLowerCase();
+  const actualValueWei = BigInt(tx.value ?? '0x0').toString();
 
   if (actualTo !== expectedTo.toLowerCase()) {
-    return { ok: false, reason: 'Recipient does not match this split.' };
+    return { ok: false, reason: `Recipient mismatch (chain: ${actualTo}, expected: ${expectedTo}).` };
   }
-  if (actualValue !== expectedValueWei) {
-    return { ok: false, reason: `Amount mismatch (chain: ${actualValue}, expected: ${expectedValueWei}).` };
+  if (actualValueWei !== expectedValueWei) {
+    return { ok: false, reason: `Amount mismatch (chain: ${actualValueWei} wei, expected: ${expectedValueWei} wei).` };
   }
 
   const { error } = await supabase
