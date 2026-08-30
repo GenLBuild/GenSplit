@@ -1,19 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
+import { createClient as createGenLayerClient } from 'genlayer-js';
+import { testnetBradbury } from 'genlayer-js/chains';
+import { TransactionStatus } from 'genlayer-js/types';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
+export const maxDuration = 60;
 
-async function rpcCall(method: string, params: unknown[]) {
-  const rpcUrl = process.env.NEXT_PUBLIC_GENLAYER_RPC_URL || 'https://rpc.testnet-chain.genlayer.com';
-  const res = await fetch(rpcUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+function getGenLayerServerClient() {
+  return createGenLayerClient({
+    chain: testnetBradbury,
+    endpoint: process.env.NEXT_PUBLIC_GENLAYER_RPC_URL || 'https://rpc.testnet-chain.genlayer.com',
   });
-  const json = await res.json();
-  if (json.error) throw new Error(json.error.message || 'RPC error');
-  return json.result;
 }
 
 function getSupabase() {
@@ -30,23 +28,33 @@ async function checkOne(
   expectedTo: string,
   expectedValueWei: string
 ) {
-  const receipt = await rpcCall('eth_getTransactionReceipt', [txnHash]);
-  if (!receipt) {
-    return { ok: false, reason: 'Transaction not found or still pending on-chain.' };
-  }
-  if (receipt.status !== '0x1') {
-    return { ok: false, reason: 'Transaction was reverted on-chain.' };
+  const client = getGenLayerServerClient();
+
+  let receipt: unknown;
+  try {
+    receipt = await client.waitForTransactionReceipt({
+      hash: txnHash as any,
+      status: TransactionStatus.FINALIZED,
+      retries: 8,
+      interval: 4000,
+    });
+  } catch {
+    return { ok: false, reason: 'Not yet finalized on GenLayer.' };
   }
 
-  const tx = await rpcCall('eth_getTransactionByHash', [txnHash]);
-  const actualTo = String(tx?.to ?? '').toLowerCase();
-  const actualValueWei = BigInt(tx?.value ?? '0x0').toString();
-
-  if (actualTo !== expectedTo.toLowerCase()) {
-    return { ok: false, reason: `Recipient mismatch (chain: ${actualTo}, expected: ${expectedTo}).` };
+  const statusName = (receipt as { status_name?: string })?.status_name;
+  if (statusName !== 'FINALIZED') {
+    return { ok: false, reason: `Not finalized yet (status: ${statusName ?? 'unknown'}).` };
   }
-  if (actualValueWei !== expectedValueWei) {
-    return { ok: false, reason: `Amount mismatch (chain: ${actualValueWei} wei, expected: ${expectedValueWei} wei).` };
+
+  const messages = (receipt as { messages?: { recipient: string; value: string }[] })?.messages ?? [];
+  const transferMsg = messages.find((m) => m.recipient?.toLowerCase() === expectedTo.toLowerCase());
+
+  if (!transferMsg) {
+    return { ok: false, reason: 'No matching transfer found in this transaction.' };
+  }
+  if (transferMsg.value !== expectedValueWei) {
+    return { ok: false, reason: `Amount mismatch (chain: ${transferMsg.value} wei, expected: ${expectedValueWei} wei).` };
   }
 
   const { error } = await supabase
@@ -58,7 +66,6 @@ async function checkOne(
   return { ok: true };
 }
 
-// Manual, single-payment check — called from the join page's "verify manually" button
 export async function POST(req: NextRequest) {
   try {
     const { memberId, txnHash, expectedTo, expectedValueWei } = await req.json();
@@ -79,7 +86,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Bulk sweep — called by the QStash agent every 5 minutes for anything still "confirming"
 export async function GET() {
   try {
     const supabase = getSupabase();
@@ -97,15 +103,9 @@ export async function GET() {
       checked++;
       const creatorAddress = (m.splits as unknown as { creator_address: string }).creator_address;
       try {
-        const result = await checkOne(
-          supabase,
-          m.id,
-          m.txn_hash,
-          creatorAddress,
-          String(m.amount_owed)
-        );
+        const result = await checkOne(supabase, m.id, m.txn_hash, creatorAddress, String(m.amount_owed));
         if (result.ok) confirmed++;
-        details.push({ memberId: m.id, txnHash: m.txn_hash, expectedTo: creatorAddress, expectedAmount: String(m.amount_owed), result });
+        details.push({ memberId: m.id, txnHash: m.txn_hash, result });
       } catch (e) {
         details.push({ memberId: m.id, txnHash: m.txn_hash, error: e instanceof Error ? e.message : String(e) });
       }
