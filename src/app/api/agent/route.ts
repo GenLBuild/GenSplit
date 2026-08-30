@@ -79,22 +79,18 @@ async function expireOldSplits(supabase: ReturnType<typeof getSupabase>) {
   return { expired: data?.length ?? 0 };
 }
 
-async function sweepConfirmingPayments(req: NextRequest) {
-  const baseUrl = req.nextUrl.origin;
-  const res = await fetch(`${baseUrl}/api/verify-payment`, { method: 'GET' });
-  const data = await res.json();
-  return { paymentsChecked: data.checked ?? 0, paymentsConfirmed: data.confirmed ?? 0 };
-}
+import { sweepConfirmingPayments } from '@/lib/verifyPayment';
 
-async function runAgent(req: NextRequest) {
+async function runAgent() {
   const supabase = getSupabase();
-  const sweepResult = await sweepConfirmingPayments(req);
+  const sweep = await sweepConfirmingPayments();
   const closeResult = await closeFullyPaidSplits(supabase);
   const expireResult = await expireOldSplits(supabase);
   return {
     ok: true,
     ranAt: new Date().toISOString(),
-    ...sweepResult,
+    paymentsChecked: sweep.checked,
+    paymentsConfirmed: sweep.confirmed,
     ...closeResult,
     ...expireResult,
   };
@@ -112,7 +108,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
   try {
-    const result = await runAgent(req);
+    const result = await runAgent();
     return NextResponse.json(result);
   } catch (err) {
     console.error('[api/agent] error:', err);
