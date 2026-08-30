@@ -30,17 +30,17 @@ export async function checkOne(
   try {
     receipt = await client.waitForTransactionReceipt({
       hash: txnHash as any,
-      status: TransactionStatus.FINALIZED,
+      status: TransactionStatus.ACCEPTED,
       retries: 5,
       interval: 3000,
     });
   } catch {
-    return { ok: false, reason: 'Not yet finalized on GenLayer.' };
+    return { ok: false, reason: 'Not yet accepted on GenLayer.' };
   }
 
   const statusName = (receipt as { status_name?: string })?.status_name;
-  if (statusName !== 'FINALIZED') {
-    return { ok: false, reason: `Not finalized yet (status: ${statusName ?? 'unknown'}).` };
+  if (statusName !== 'ACCEPTED' && statusName !== 'FINALIZED') {
+    return { ok: false, reason: `Not accepted yet (status: ${statusName ?? 'unknown'}).` };
   }
 
   const messages = (receipt as { messages?: { recipient: string; value: string }[] })?.messages ?? [];
