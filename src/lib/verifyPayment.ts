@@ -1,13 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
-import { createClient as createGenLayerClient } from 'genlayer-js';
-import { testnetBradbury } from 'genlayer-js/chains';
-import { TransactionStatus } from 'genlayer-js/types';
 
-export function getGenLayerServerClient() {
-  return createGenLayerClient({
-    chain: testnetBradbury,
-    endpoint: process.env.NEXT_PUBLIC_GENLAYER_RPC_URL || 'https://rpc.testnet-chain.genlayer.com',
+async function rpcCall(method: string, params: unknown[]) {
+  const rpcUrl = process.env.NEXT_PUBLIC_GENLAYER_RPC_URL || 'https://rpc.testnet-chain.genlayer.com';
+  const res = await fetch(rpcUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
   });
+  const json = await res.json();
+  if (json.error) throw new Error(json.error.message || 'RPC error');
+  return json.result;
 }
 
 export function getSupabase() {
@@ -24,33 +26,23 @@ export async function checkOne(
   expectedTo: string,
   expectedValueWei: string
 ) {
-  const client = getGenLayerServerClient();
-
-  let receipt: unknown;
-  try {
-    receipt = await client.waitForTransactionReceipt({
-      hash: txnHash as any,
-      status: TransactionStatus.ACCEPTED,
-      retries: 5,
-      interval: 3000,
-    });
-  } catch {
-    return { ok: false, reason: 'Not yet accepted on GenLayer.' };
+  const receipt = await rpcCall('eth_getTransactionReceipt', [txnHash]);
+  if (!receipt) {
+    return { ok: false, reason: 'Transaction not found or still pending on-chain.' };
+  }
+  if (receipt.status !== '0x1') {
+    return { ok: false, reason: 'Transaction was reverted on-chain.' };
   }
 
-  const statusName = (receipt as { status_name?: string })?.status_name;
-  if (statusName !== 'ACCEPTED' && statusName !== 'FINALIZED') {
-    return { ok: false, reason: `Not accepted yet (status: ${statusName ?? 'unknown'}).` };
-  }
+  const tx = await rpcCall('eth_getTransactionByHash', [txnHash]);
+  const actualTo = String(tx?.to ?? '').toLowerCase();
+  const actualValueWei = BigInt(tx?.value ?? '0x0').toString();
 
-  const messages = (receipt as { messages?: { recipient: string; value: string }[] })?.messages ?? [];
-  const transferMsg = messages.find((m) => m.recipient?.toLowerCase() === expectedTo.toLowerCase());
-
-  if (!transferMsg) {
-    return { ok: false, reason: 'No matching transfer found in this transaction.' };
+  if (actualTo !== expectedTo.toLowerCase()) {
+    return { ok: false, reason: `Recipient mismatch (chain: ${actualTo}, expected: ${expectedTo}).` };
   }
-  if (transferMsg.value !== expectedValueWei) {
-    return { ok: false, reason: `Amount mismatch (chain: ${transferMsg.value} wei, expected: ${expectedValueWei} wei).` };
+  if (actualValueWei !== expectedValueWei) {
+    return { ok: false, reason: `Amount mismatch (chain: ${actualValueWei} wei, expected: ${expectedValueWei} wei).` };
   }
 
   const { error } = await supabase
