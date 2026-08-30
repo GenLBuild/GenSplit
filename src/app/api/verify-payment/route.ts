@@ -1,17 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createGenLayerClient } from 'genlayer-js';
-import { testnetBradbury } from 'genlayer-js/chains';
-import { TransactionStatus } from 'genlayer-js/types';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 30;
 
-function getGenLayerServerClient() {
-  return createGenLayerClient({
-    chain: testnetBradbury,
-    endpoint: process.env.NEXT_PUBLIC_GENLAYER_RPC_URL || 'https://rpc.testnet-chain.genlayer.com',
+async function rpcCall(method: string, params: unknown[]) {
+  const rpcUrl = process.env.NEXT_PUBLIC_GENLAYER_RPC_URL || 'https://rpc.testnet-chain.genlayer.com';
+  const res = await fetch(rpcUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
   });
+  const json = await res.json();
+  if (json.error) throw new Error(json.error.message || 'RPC error');
+  return json.result;
 }
 
 function getSupabase() {
@@ -28,37 +30,20 @@ async function checkOne(
   expectedTo: string,
   expectedValueWei: string
 ) {
-  const client = getGenLayerServerClient();
-
-  let tx: unknown;
-  try {
-    tx = await client.waitForTransactionReceipt({
-      hash: txnHash as any,
-      status: TransactionStatus.ACCEPTED,
-      retries: 4,
-      interval: 3000,
-    });
-  } catch {
-    return { ok: false, reason: 'Still validating on GenLayer — not yet accepted.' };
+  const receipt = await rpcCall('eth_getTransactionReceipt', [txnHash]);
+  if (!receipt) {
+    return { ok: false, reason: 'Transaction not found or still pending on-chain.' };
+  }
+  if (receipt.status !== '0x1') {
+    return { ok: false, reason: 'Transaction was reverted on-chain.' };
   }
 
-  const statusName = (tx as { status_name?: string })?.status_name;
-  if (statusName !== 'ACCEPTED' && statusName !== 'FINALIZED') {
-    return { ok: false, reason: `Still validating on GenLayer (status: ${statusName ?? 'unknown'}).` };
-  }
+  const tx = await rpcCall('eth_getTransactionByHash', [txnHash]);
+  const actualTo = String(tx?.to ?? '').toLowerCase();
+  const actualValueWei = BigInt(tx?.value ?? '0x0').toString();
 
-  const actualTo = String((tx as { recipient?: string })?.recipient ?? '').toLowerCase();
-  const rawMessages = (tx as { messages?: { recipient: string; value: string }[] })?.messages ?? [];
-
-  // Plain transfers carry the real recipient/value inside the tx's messages array
-  const transferMsg = rawMessages.find(
-    (m) => m.recipient?.toLowerCase() === expectedTo.toLowerCase()
-  );
-  const actualValueWei = transferMsg?.value ?? '0';
-  const actualRecipient = (transferMsg?.recipient ?? actualTo).toLowerCase();
-
-  if (actualRecipient !== expectedTo.toLowerCase()) {
-    return { ok: false, reason: `Recipient mismatch (chain: ${actualRecipient}, expected: ${expectedTo}).` };
+  if (actualTo !== expectedTo.toLowerCase()) {
+    return { ok: false, reason: `Recipient mismatch (chain: ${actualTo}, expected: ${expectedTo}).` };
   }
   if (actualValueWei !== expectedValueWei) {
     return { ok: false, reason: `Amount mismatch (chain: ${actualValueWei} wei, expected: ${expectedValueWei} wei).` };
