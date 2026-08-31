@@ -150,11 +150,26 @@ export async function callDisputeResolution(
     throw new Error('NEXT_PUBLIC_GENLAYER_CONTRACT_DISPUTE is not configured');
   }
 
+  // Verify the transaction server-side (deterministic, proven-working RPC check)
+  // BEFORE the contract call — avoids validators disagreeing on a flaky fetch.
+  let onchainVerified = false;
+  try {
+    const res = await fetch('/api/verify-dispute-tx', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ txnHash, expectedWallet, expectedAmountWei: expectedAmountWei.toString() }),
+    });
+    const data = await res.json();
+    onchainVerified = !!data.verified;
+  } catch {
+    onchainVerified = false;
+  }
+
   const client = getGenLayerClient(fromAddress);
   const hash = await client.writeContract({
     address: contractAddress as `0x${string}`,
     functionName: 'resolve_dispute',
-    args: [splitMemberId, claimText, txnHash, expectedWallet, expectedAmountWei.toString()],
+    args: [splitMemberId, claimText, txnHash, expectedWallet, expectedAmountWei.toString(), onchainVerified],
     value: 0n,
   });
   const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED, retries: 100, interval: 5000 });
