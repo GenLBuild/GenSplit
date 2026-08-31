@@ -93,6 +93,7 @@ export function SplitCard({ split, onUpdate }: SplitCardProps) {
       {disputeMember && (
         <DisputeModal
           member={disputeMember}
+          creatorAddress={split.creator_address}
           onClose={() => setDisputeMember(null)}
           onResolved={() => { setDisputeMember(null); onUpdate(); }}
         />

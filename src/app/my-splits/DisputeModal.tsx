@@ -9,11 +9,12 @@ import { formatGEN, shortenAddress } from '@/lib/format';
 
 interface DisputeModalProps {
   member: SplitMember;
+  creatorAddress: string;
   onClose: () => void;
   onResolved: () => void;
 }
 
-export function DisputeModal({ member, onClose, onResolved }: DisputeModalProps) {
+export function DisputeModal({ member, creatorAddress, onClose, onResolved }: DisputeModalProps) {
   const [claimText, setClaimText] = useState('');
   const [txnHash, setTxnHash] = useState(member.txn_hash ?? '');
   const { isSubmitting, result, error, submitDispute, reset } = useDisputeResolution();
@@ -22,7 +23,7 @@ export function DisputeModal({ member, onClose, onResolved }: DisputeModalProps)
 
   const handleSubmit = async () => {
     if (!claimText.trim()) return;
-    await submitDispute(member.id, claimText, txnHash, member.wallet_address, member.amount_owed);
+    await submitDispute(member.id, claimText, txnHash, creatorAddress, member.amount_owed);
   };
 
   return (
