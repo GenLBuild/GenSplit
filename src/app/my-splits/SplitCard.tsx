@@ -89,10 +89,10 @@ export function SplitCard({ split, onUpdate }: SplitCardProps) {
         )}
       </AnimatePresence>
 
-      {/* Dispute modal */}
+      {/* Dispute modal — always use the live member object, never a stale snapshot */}
       {disputeMember && (
         <DisputeModal
-          member={disputeMember}
+          member={members.find((m) => m.id === disputeMember.id) ?? disputeMember}
           creatorAddress={split.creator_address}
           onClose={() => setDisputeMember(null)}
           onResolved={() => { setDisputeMember(null); onUpdate(); }}

@@ -33,7 +33,7 @@ export function DisputeModal({ member, creatorAddress, onClose, onResolved }: Di
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
-        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+        onClick={(e) => { if (e.target === e.currentTarget && !isSubmitting) onClose(); }}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -52,7 +52,7 @@ export function DisputeModal({ member, creatorAddress, onClose, onResolved }: Di
                 <p className="text-xs text-zinc-500">Resolved via GenLayer Intelligent Contract</p>
               </div>
             </div>
-            <button onClick={onClose} className="p-2 rounded-lg hover:bg-zinc-100 text-zinc-400">
+            <button onClick={onClose} disabled={isSubmitting} className="p-2 rounded-lg hover:bg-zinc-100 text-zinc-400 disabled:opacity-30">
               <X size={16} />
             </button>
           </div>
