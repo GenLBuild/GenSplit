@@ -20,10 +20,20 @@ export function MySplitsPage() {
     enabled: !!address,
   });
 
+  const mySplitIds = splits.map((s) => s.id);
+
   useRealtimeChannel({
     channelName: 'my-splits-members',
     table: 'split_members',
-    onUpdate: () => refetch(),
+    onUpdate: (payload) => {
+      // Only refetch if the changed row actually belongs to one of THIS user's
+      // splits — otherwise any user's unrelated activity anywhere in the app
+      // would force a refetch here, which can tear down open modals mid-action.
+      const changedSplitId = (payload as { split_id?: string })?.split_id;
+      if (changedSplitId && mySplitIds.includes(changedSplitId)) {
+        refetch();
+      }
+    },
     enabled: !!address,
   });
 
