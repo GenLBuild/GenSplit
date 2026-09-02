@@ -17,8 +17,11 @@ interface SplitCardProps {
 
 export function SplitCard({ split, onUpdate }: SplitCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const [disputeMember, setDisputeMember] = useState<SplitMember | null>(null);
+  const [disputeMemberId, setDisputeMemberId] = useState<string | null>(null);
   const members = split.members ?? [];
+  // Keep the modal's member reference stable while it's open, even if the
+  // parent's data refetches mid-submission (e.g. from an unrelated realtime update)
+  const disputeMember = disputeMemberId ? members.find((m) => m.id === disputeMemberId) ?? null : null;
 
   return (
     <motion.div
@@ -81,7 +84,7 @@ export function SplitCard({ split, onUpdate }: SplitCardProps) {
                 <MemberRow
                   key={member.id}
                   member={member}
-                  onDispute={() => setDisputeMember(member)}
+                  onDispute={() => setDisputeMemberId(member.id)}
                 />
               ))}
             </div>
@@ -89,13 +92,13 @@ export function SplitCard({ split, onUpdate }: SplitCardProps) {
         )}
       </AnimatePresence>
 
-      {/* Dispute modal — always use the live member object, never a stale snapshot */}
+      {/* Dispute modal */}
       {disputeMember && (
         <DisputeModal
-          member={members.find((m) => m.id === disputeMember.id) ?? disputeMember}
+          member={disputeMember}
           creatorAddress={split.creator_address}
-          onClose={() => setDisputeMember(null)}
-          onResolved={() => { setDisputeMember(null); onUpdate(); }}
+          onClose={() => setDisputeMemberId(null)}
+          onResolved={() => { setDisputeMemberId(null); onUpdate(); }}
         />
       )}
     </motion.div>
