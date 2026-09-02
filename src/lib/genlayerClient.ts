@@ -172,7 +172,7 @@ export async function callDisputeResolution(
     args: [splitMemberId, claimText, txnHash, expectedWallet, expectedAmountWei.toString(), onchainVerified],
     value: 0n,
   });
-  const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED, retries: 100, interval: 5000 });
+  const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED, retries: 400, interval: 5000 });
   const decoded = decodeEqBlocksOutputs((receipt as unknown as { eqBlocksOutputs?: string }).eqBlocksOutputs);
   return (decoded ?? { fulfilled: false, reasoning: 'Could not decode contract response' }) as { fulfilled: boolean; reasoning: string };
 }
