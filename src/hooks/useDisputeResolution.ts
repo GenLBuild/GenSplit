@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { callDisputeResolution } from '@/lib/genlayerClient';
-import { flagDispute, resolveDispute } from './useSplits';
+import { resolveDispute } from './useSplits';
 import { useGenLayerWallet } from './useGenLayerWallet';
 
 export interface DisputeState {
@@ -38,10 +38,9 @@ export function useDisputeResolution() {
 
       setState({ isSubmitting: true, result: null, error: null });
       try {
-        // Flag the dispute in Supabase
-        await flagDispute(splitMemberId);
-
-        // Call the GenLayer Intelligent Contract
+        // Call the GenLayer Intelligent Contract — don't flag as disputed until it
+        // actually succeeds, so a failed/rejected transaction doesn't leave the
+        // row stuck in a permanent "disputed" state with no way to retry.
         if (!address) {
           throw new Error('Wallet not connected');
         }
