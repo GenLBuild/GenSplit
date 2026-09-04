@@ -44,14 +44,18 @@ export function useDisputeResolution() {
         if (!address) {
           throw new Error('Wallet not connected');
         }
+        alert('Step 1: calling contract...');
         const result = await callDisputeResolution(address, splitMemberId, claimText, txnHash, expectedWallet, expectedAmountWei);
+        alert('Step 2: contract returned: ' + JSON.stringify(result));
 
         // Apply the finalized verdict to the split's real status — don't just display it
         await resolveDispute(splitMemberId, result.fulfilled);
+        alert('Step 3: DB updated successfully');
 
         setState({ isSubmitting: false, result, error: null });
         return result;
       } catch (err) {
+        alert('CAUGHT ERROR: ' + (err instanceof Error ? err.message : String(err)));
         const msg = err instanceof Error ? err.message : 'Dispute submission failed';
         setState({ isSubmitting: false, result: null, error: msg });
         return null;
