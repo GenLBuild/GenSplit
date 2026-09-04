@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { LayoutGrid, AlertCircle, Plus } from 'lucide-react';
 import { useGenLayerWallet } from '@/hooks/useGenLayerWallet';
@@ -15,25 +16,29 @@ export function MySplitsPage() {
     channelName: 'my-splits-updates',
     table: 'splits',
     filter: address ? `creator_address=eq.${address.toLowerCase()}` : undefined,
-    onUpdate: () => refetch(),
-    onInsert: () => refetch(),
+    onUpdate: refetch,
+    onInsert: refetch,
     enabled: !!address,
   });
 
-  const mySplitIds = splits.map((s) => s.id);
+  // Stable reference — only changes when the actual set of split IDs changes,
+  // not on every render (avoids constantly resubscribing the realtime channel below)
+  const mySplitIds = useMemo(() => splits.map((s) => s.id), [splits]);
 
-  useRealtimeChannel({
-    channelName: 'my-splits-members',
-    table: 'split_members',
-    onUpdate: (payload) => {
-      // Only refetch if the changed row actually belongs to one of THIS user's
-      // splits — otherwise any user's unrelated activity anywhere in the app
-      // would force a refetch here, which can tear down open modals mid-action.
+  const handleMemberUpdate = useCallback(
+    (payload: Record<string, unknown>) => {
       const changedSplitId = (payload as { split_id?: string })?.split_id;
       if (changedSplitId && mySplitIds.includes(changedSplitId)) {
         refetch();
       }
     },
+    [mySplitIds, refetch]
+  );
+
+  useRealtimeChannel({
+    channelName: 'my-splits-members',
+    table: 'split_members',
+    onUpdate: handleMemberUpdate,
     enabled: !!address,
   });
 
